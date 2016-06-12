@@ -7,7 +7,7 @@ Annotator = require('annotator')
 $ = Annotator.$
 
 adder = require('./adder')
-highlighter = require('./highlighter')
+Highlight = require('./highlight')
 rangeUtil = require('./range-util')
 selections = require('./selections')
 
@@ -33,11 +33,7 @@ normalizeURI = (uri, baseURI) ->
 module.exports = class Guest extends Annotator
   SHOW_HIGHLIGHTS_CLASS = 'annotator-highlights-always-on'
 
-  # Events to be bound on Annotator#element.
-  events:
-    ".annotator-hl click":               "onHighlightClick"
-    ".annotator-hl mouseover":           "onHighlightMouseover"
-    ".annotator-hl mouseout":            "onHighlightMouseout"
+  events: {}
 
   options:
     Document: {}
@@ -124,14 +120,14 @@ module.exports = class Guest extends Annotator
 
   _connectAnnotationUISync: (crossframe) ->
     crossframe.on 'focusAnnotations', (tags=[]) =>
-      for anchor in @anchors when anchor.highlights?
+      for anchor in @anchors when anchor.highlight?
         toggle = anchor.annotation.$$tag in tags
-        $(anchor.highlights).toggleClass('annotator-hl-focused', toggle)
+        anchor.highlight.setClass('annotator-hl-focused', toggle)
 
     crossframe.on 'scrollToAnnotation', (tag) =>
-      for anchor in @anchors when anchor.highlights?
+      for anchor in @anchors when anchor.highlight?
         if anchor.annotation.$$tag is tag
-          scrollIntoView(anchor.highlights[0])
+          scrollIntoView(anchor.highlight.node())
 
     crossframe.on 'getDocumentInfo', (cb) =>
       this.getDocumentInfo()
@@ -157,9 +153,9 @@ module.exports = class Guest extends Annotator
     this.selections.unsubscribe()
     @adder.remove()
 
-    @element.find('.annotator-hl').each ->
-      $(this).contents().insertBefore(this)
-      $(this).remove()
+    @anchors.forEach (anchor) ->
+      if anchor.highlight?
+        anchor.highlight.remove()
 
     @element.data('annotator', null)
 
@@ -214,12 +210,13 @@ module.exports = class Guest extends Annotator
       # Highlight the range for an anchor.
       return anchor unless anchor.range?
       return animationPromise ->
-        range = Annotator.Range.sniff(anchor.range)
-        normedRange = range.normalize(root)
-        highlights = highlighter.highlightRange(normedRange)
-
-        $(highlights).data('annotation', anchor.annotation)
-        anchor.highlights = highlights
+        hl = new Highlight(anchor.range, {
+          className: 'annotator-hl',
+          onClick: (e) -> self.onHighlightClick(e, anchor.annotation),
+          onMouseEnter: (e) -> self.onHighlightMouseover(e, anchor.annotation),
+          onMouseLeave: (e) -> self.onHighlightMouseout(e, anchor.annotation),
+        })
+        anchor.highlight = hl unless hl.isEmpty()
         return anchor
 
     sync = (anchors) ->
@@ -255,17 +252,17 @@ module.exports = class Guest extends Annotator
         if anchor.range? and anchor.target in annotation.target
           anchors.push(anchor)
           anchoredTargets.push(anchor.target)
-        else if anchor.highlights?
+        else if anchor.highlight?
           # These highlights are no longer valid and should be removed.
-          deadHighlights = deadHighlights.concat(anchor.highlights)
-          delete anchor.highlights
+          deadHighlights = deadHighlights.concat(anchor.highlight)
+          delete anchor.highlight
           delete anchor.range
       else
         # These can be ignored, so push them back onto the new list.
         self.anchors.push(anchor)
 
     # Remove all the highlights that have no corresponding target anymore.
-    raf -> highlighter.removeHighlights(deadHighlights)
+    raf -> deadHighlights.forEach((hl) -> hl.remove())
 
     # Anchor any targets of this annotation that are not anchored already.
     for target in annotation.target when target not in anchoredTargets
@@ -281,15 +278,15 @@ module.exports = class Guest extends Annotator
 
     for anchor in @anchors
       if anchor.annotation is annotation
-        unhighlight.push(anchor.highlights ? [])
+        if anchor.highlight
+          unhighlight.push(anchor.highlight)
       else
         anchors.push(anchor)
 
     this.anchors = anchors
 
-    unhighlight = Array::concat(unhighlight...)
     raf =>
-      highlighter.removeHighlights(unhighlight)
+      unhighlight.forEach((hl) -> hl.remove())
       this.plugins.BucketBar?.update()
 
   createAnnotation: (annotation = {}) ->
@@ -397,11 +394,9 @@ module.exports = class Guest extends Annotator
     else
       this.showAnnotations annotations
 
-  onHighlightMouseover: (event) ->
+  onHighlightMouseover: (event, annotation) ->
     return unless @visibleHighlights
-    annotation = $(event.currentTarget).data('annotation')
-    annotations = event.annotations ?= []
-    annotations.push(annotation)
+    annotations = [annotation]
 
     # The innermost highlight will execute this.
     # The timeout gives time for the event to bubble, letting any overlapping
@@ -414,11 +409,9 @@ module.exports = class Guest extends Annotator
     return unless @visibleHighlights
     this.focusAnnotations []
 
-  onHighlightClick: (event) ->
+  onHighlightClick: (event, annotation) ->
     return unless @visibleHighlights
-    annotation = $(event.currentTarget).data('annotation')
-    annotations = event.annotations ?= []
-    annotations.push(annotation)
+    annotations = [annotation]
 
     # See the comment in onHighlightMouseover
     if event.target is event.currentTarget
@@ -438,4 +431,3 @@ module.exports = class Guest extends Annotator
       @element.removeClass(SHOW_HIGHLIGHTS_CLASS)
 
     @visibleHighlights = shouldShowHighlights
-

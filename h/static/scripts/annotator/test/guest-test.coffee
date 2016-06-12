@@ -158,26 +158,26 @@ describe 'Guest', ->
 
     describe 'on "focusAnnotations" event', ->
       it 'focuses any annotations with a matching tag', ->
-        highlight0 = $('<span></span>')
-        highlight1 = $('<span></span>')
+        highlight0 = {setClass: sinon.stub()}
+        highlight1 = {setClass: sinon.stub()}
         guest = createGuest()
         guest.anchors = [
-          {annotation: {$$tag: 'tag1'}, highlights: highlight0.toArray()}
-          {annotation: {$$tag: 'tag2'}, highlights: highlight1.toArray()}
+          {annotation: {$$tag: 'tag1'}, highlight: highlight0}
+          {annotation: {$$tag: 'tag2'}, highlight: highlight1}
         ]
         emitGuestEvent('focusAnnotations', ['tag1'])
-        assert.isTrue(highlight0.hasClass('annotator-hl-focused'))
+        assert.calledWith(highlight0.setClass, 'annotator-hl-focused', true)
 
       it 'unfocuses any annotations without a matching tag', ->
-        highlight0 = $('<span class="annotator-hl-focused"></span>')
-        highlight1 = $('<span class="annotator-hl-focused"></span>')
+        highlight0 = {setClass: sinon.stub()}
+        highlight1 = {setClass: sinon.stub()}
         guest = createGuest()
         guest.anchors = [
-          {annotation: {$$tag: 'tag1'}, highlights: highlight0.toArray()}
-          {annotation: {$$tag: 'tag2'}, highlights: highlight1.toArray()}
+          {annotation: {$$tag: 'tag1'}, highlight: highlight0}
+          {annotation: {$$tag: 'tag2'}, highlight: highlight1}
         ]
         emitGuestEvent('focusAnnotations', 'ctx', ['tag1'])
-        assert.isFalse(highlight1.hasClass('annotator-hl-focused'))
+        assert.calledWith(highlight1.setClass, 'annotator-hl-focused', false)
 
     describe 'on "scrollToAnnotation" event', ->
 
@@ -185,14 +185,15 @@ describe 'Guest', ->
         scrollIntoView.reset()
 
       it 'scrolls to the anchor with the matching tag', ->
-        highlight = $('<span></span>')
+        highlightNode = $('<span></span>')
+        highlight = {node: -> highlightNode[0]}
         guest = createGuest()
         guest.anchors = [
-          {annotation: {$$tag: 'tag1'}, highlights: highlight.toArray()}
+          {annotation: {$$tag: 'tag1'}, highlight: highlight}
         ]
         emitGuestEvent('scrollToAnnotation', 'tag1')
         assert.called(scrollIntoView)
-        assert.calledWith(scrollIntoView, highlight[0])
+        assert.calledWith(scrollIntoView, highlightNode[0])
 
     describe 'on "getDocumentInfo" event', ->
       guest = null
@@ -473,7 +474,6 @@ describe 'Guest', ->
       guest = createGuest()
       highlights = [document.createElement('span')]
       sandbox.stub(anchoring, 'anchor').returns(Promise.resolve(range))
-      sandbox.stub(highlighter, 'highlightRange').returns(highlights)
       target = {selector: [{type: 'TextQuoteSelector', exact: 'hello'}]}
       guest.anchor({target: [target]}).then (anchors) ->
         assert.equal(anchors.length, 1)
@@ -481,9 +481,7 @@ describe 'Guest', ->
 
     it 'adds the anchor to the "anchors" instance property"', (done) ->
       guest = createGuest()
-      highlights = [document.createElement('span')]
       sandbox.stub(anchoring, 'anchor').returns(Promise.resolve(range))
-      sandbox.stub(highlighter, 'highlightRange').returns(highlights)
       target = {selector: [{type: 'TextQuoteSelector', exact: 'hello'}]}
       annotation = {target: [target]}
       guest.anchor(annotation).then ->
@@ -491,21 +489,19 @@ describe 'Guest', ->
         assert.strictEqual(guest.anchors[0].annotation, annotation)
         assert.strictEqual(guest.anchors[0].target, target)
         assert.strictEqual(guest.anchors[0].range, range)
-        assert.strictEqual(guest.anchors[0].highlights, highlights)
+        assert.ok(guest.anchors[0].highlight)
       .then(done, done)
 
     it 'destroys targets that have been removed from the annotation', (done) ->
       annotation = {}
       target = {}
-      highlights = []
+      highlight = { remove: sinon.stub() }
       guest = createGuest()
-      guest.anchors = [{annotation, target, highlights}]
-      removeHighlights = sandbox.stub(highlighter, 'removeHighlights')
+      guest.anchors = [{annotation, target, highlight}]
 
       guest.anchor(annotation).then ->
         assert.equal(guest.anchors.length, 0)
-        assert.calledOnce(removeHighlights, highlights)
-        assert.calledWith(removeHighlights, highlights)
+        assert.calledOnce(highlight.remove)
       .then(done, done)
 
     it 'does not reanchor targets that are already anchored', (done) ->
@@ -548,11 +544,9 @@ describe 'Guest', ->
     it 'removes any highlights associated with the annotation', ->
       guest = createGuest()
       annotation = {}
-      highlights = [document.createElement('span')]
-      removeHighlights = sandbox.stub(highlighter, 'removeHighlights')
+      highlight = {remove: sinon.stub()}
 
-      guest.anchors.push({annotation, highlights})
+      guest.anchors.push({annotation, highlight})
       guest.deleteAnnotation(annotation)
 
-      assert.calledOnce(removeHighlights)
-      assert.calledWith(removeHighlights, highlights)
+      assert.calledOnce(highlight.remove)
