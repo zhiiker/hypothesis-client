@@ -12,6 +12,7 @@ var commander = require('commander');
 var debounce = require('lodash.debounce');
 var endOfStream = require('end-of-stream');
 var gulp = require('gulp');
+var gulpFile = require('gulp-file');
 var gulpIf = require('gulp-if');
 var gulpUtil = require('gulp-util');
 var postcss = require('gulp-postcss');
@@ -20,8 +21,11 @@ var sass = require('gulp-sass');
 var sourcemaps = require('gulp-sourcemaps');
 var through = require('through2');
 
+var appConfig = require('./scripts/gulp/app-config');
 var createBundle = require('./scripts/gulp/create-bundle');
 var manifest = require('./scripts/gulp/manifest');
+var renderAppHTML = require('./scripts/gulp/render-app-html');
+var renderEmbedScript = require('./scripts/gulp/render-embed-script');
 var vendorBundles = require('./scripts/gulp/vendor-bundles');
 
 var IS_PRODUCTION_BUILD = process.env.NODE_ENV === 'production';
@@ -233,6 +237,25 @@ gulp.task('watch-templates', function () {
   });
 });
 
+gulp.task('build-embed', function () {
+  var manifest = require('./build/manifest.json');
+  var appHTML = renderAppHTML(manifest, appConfig());
+  var embedScript = renderEmbedScript(manifest);
+
+  gulpFile('app.html', appHTML, {src: true})
+    .pipe(gulp.dest('build/'));
+  gulpFile('embed.js', embedScript, {src: true})
+    .pipe(gulp.dest('build/'));
+});
+
+gulp.task('watch-embed', ['build-embed'], function () {
+  var embedFiles = [
+    './build/manifest.json',
+    './scripts/gulp/*.mustache',
+  ];
+  gulp.watch(embedFiles, ['build-embed']);
+});
+
 var MANIFEST_SOURCE_FILES = 'build/@(fonts|images|scripts|styles)/*.@(js|css|woff|jpg|png|svg)';
 
 var prevManifest = {};
@@ -310,6 +333,7 @@ gulp.task('build-app',
 
 gulp.task('build',
           ['build-app-js',
+           'build-embed',
            'build-extension-js',
            'build-css',
            'build-fonts',
@@ -319,6 +343,7 @@ gulp.task('build',
 gulp.task('watch',
           ['start-live-reload-server',
            'watch-app-js',
+           'watch-embed',
            'watch-extension-js',
            'watch-css',
            'watch-fonts',

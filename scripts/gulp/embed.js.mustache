@@ -1,0 +1,125 @@
+(function () {
+
+// Detect presence of Hypothesis in the page
+var appLinkEl = document.querySelector('link[type="application/annotator+html"]');
+if (appLinkEl) {
+  return {
+    installedURL: appLinkEl.href,
+  };
+}
+
+// When run from a Chrome or Firefox extension, load resources bundled with the
+// extension. Note that in Firefox, the 'chrome' object is accessible as a
+// global but not attached to the 'window' object.
+var resourceRoot;
+if (typeof chrome !== 'undefined' &&
+    typeof chrome.extension !== 'undefined' &&
+    typeof chrome.extension.getURL !== 'undefined') {
+  resourceRoot = chrome.extension.getURL('/');
+}
+
+function currentScript() {
+  if (document.currentScript) {
+    // Firefox, Chrome, Safari >=8, Edge
+    return document.currentScript.src;
+  } else {
+    // IE, Safari < 8
+    try {
+      throw new Error('err');
+    } catch (err) {
+      var stackLines = err.stack.split('\n');
+      for (var i=0; i < stackLines.length; i++) {
+        var url = stackLines[i].match(/https?:\/\/.*js/);
+        if (url) {
+          return url[0];
+        }
+      }
+    }
+    return null;
+  }
+}
+
+/**
+ * Resolve a URL relative to a given base URL.
+ *
+ * Uses the DOM `URL` if available or a polyfill for IE 10/11 and early versions
+ * of Edge.
+ */
+function resolveURL(url, base) {
+  try {
+    return new URL(url, base).href;
+  } catch (err) {
+    // Adapted from https://github.com/arv/DOM-URL-Polyfill/blob/master/src/url.js
+    var doc = document.implementation.createHTMLDocument('');
+    var baseEl = doc.createElement('base');
+    baseEl.href = base;
+    doc.head.appendChild(baseEl);
+    var anchorEl = doc.createElement('a');
+    anchorEl.href = url;
+    doc.body.appendChild(anchorEl);
+    return anchorEl.href;
+  }
+}
+
+var scriptURL = currentScript();
+if (!resourceRoot && scriptURL) {
+  resourceRoot = resolveURL('.', scriptURL);
+}
+
+function resolve(url) {
+  if (!resourceRoot) {
+    return url;
+  }
+  return resolveURL(url, resourceRoot);
+}
+
+function injectStylesheet(href) {
+  var link = document.createElement('link');
+  link.rel = 'stylesheet';
+  link.type = 'text/css';
+  link.href = resolve(href);
+  document.head.appendChild(link);
+};
+
+function injectScript(src) {
+  var script = document.createElement('script');
+  script.type = 'text/javascript';
+  script.src = resolve(src);
+
+  // Set 'async' to false to maintain execution order of scripts.
+  // See https://developer.mozilla.org/en-US/docs/Web/HTML/Element/script
+  script.async = false;
+  document.head.appendChild(script);
+};
+
+/** Fetch the resources for the Hypothesis client. */
+function install() {
+  var resources = [];
+  if (typeof window.Annotator === 'undefined') {
+    {{# resourceURLs }}
+    resources.push('{{{url}}}');
+    {{/ resourceURLs }}
+  }
+
+  resources.forEach(function (url) {
+    if (url.match(/\.css/)) {
+      injectStylesheet(url);
+    } else {
+      injectScript(url);
+    }
+  });
+}
+
+// Register the URL of the sidebar app which the Hypothesis client should load.
+// The <link> tag is also used by browser extensions etc. to detect the
+// presence of the Hypothesis client on the page.
+var baseUrl = document.createElement('link');
+baseUrl.rel = 'sidebar';
+baseUrl.href = resolve(resourceRoot + 'app.html');
+baseUrl.type = 'application/annotator+html';
+document.head.appendChild(baseUrl);
+
+install();
+
+return {installedURL: baseUrl.href};
+})();
