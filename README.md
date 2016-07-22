@@ -1,11 +1,3 @@
-Hypothesis client
-=================
-
-[![Build status](https://img.shields.io/travis/hypothesis/client/master.svg)][travis]
-[![npm version](https://img.shields.io/npm/v/hypothesis.svg)][npm]
-[![#hypothes.is IRC channel](https://img.shields.io/badge/IRC-%23hypothes.is-blue.svg)][irc]
-[![BSD licensed](https://img.shields.io/badge/license-BSD-blue.svg)][license]
-
 [travis]: https://travis-ci.org/hypothesis/client
 [npm]: https://www.npmjs.com/package/hypothesis
 [irc]: https://www.irccloud.com/invite?channel=%23hypothes.is&amp;hostname=irc.freenode.net&amp;port=6667&amp;ssl=1
