@@ -101,14 +101,24 @@ function isNew(annotation) {
   return !annotation.id;
 }
 
+/** Return `true` if the given annotation is not yet anchored, `false` otherwise. */
+function isWaitingToAnchor(annotation) {
+  return (typeof annotation.$orphan === 'undefined');
+}
+
+/** Return `true` if the given annotation is an orphan, `false` otherwise. */
+function isOrphan(annotation) {
+  return annotation.$orphan;
+}
+
 /** Return `true` if the given annotation is a page note, `false` otherwise. */
 function isPageNote(annotation) {
-  return !isAnnotation(annotation) && !isReply(annotation);
+  return !isOrphan(annotation) && !isAnnotation(annotation) && !isReply(annotation);
 }
 
 /** Return `true` if the given annotation is a top level annotation, `false` otherwise. */
 function isAnnotation(annotation) {
-  return !!(annotation.target && annotation.target.length > 0 && annotation.target[0].selector);
+  return !!(!isOrphan(annotation) && annotation.target && annotation.target.length > 0 && annotation.target[0].selector);
 }
 
 /** Return a numeric key that can be used to sort annotations by location.
@@ -137,7 +147,9 @@ module.exports = {
   domainAndTitle: domainAndTitle,
   isAnnotation: isAnnotation,
   isNew: isNew,
+  isOrphan: isOrphan,
   isPageNote: isPageNote,
   isReply: isReply,
+  isWaitingToAnchor: isWaitingToAnchor,
   location: location,
 };

@@ -245,4 +245,17 @@ describe('annotation-metadata', function () {
       assert.isFalse(annotationMetadata.isAnnotation({}));
     });
   });
+
+  describe('.isOrphan', function () {
+    it('returns true if an annotation is marked orphan', function() {
+      assert.isTrue(annotationMetadata.isOrphan({
+        $orphan: true,
+      }));
+    });
+    it('returns false if an annotation is not marked an orphan', function() {
+      assert.isFalse(annotationMetadata.isOrphan({
+        $orphan: false,
+      }));
+    });
+  });
 });
