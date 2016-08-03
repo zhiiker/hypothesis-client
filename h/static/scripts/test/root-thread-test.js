@@ -221,7 +221,10 @@ describe('rootThread', function () {
       rootThread.thread(fakeAnnotationUI.state);
       var threadFilterFn = fakeBuildThread.args[0][1].threadFilterFn;
 
-      assert.isTrue(threadFilterFn({annotation: {$orphan: true}}));
+      var orphan = Object.assign(annotationFixtures.defaultAnnotation(),
+        {$orphan: true});
+
+      assert.isTrue(threadFilterFn({annotation: orphan}));
     });
 
     it('filter matches only notes when Annotations tab is selected', function () {

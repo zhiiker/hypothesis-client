@@ -1,6 +1,7 @@
 'use strict';
 
 var annotationMetadata = require('../annotation-metadata');
+var fixtures = require('./annotation-fixtures');
 
 var documentMetadata = annotationMetadata.documentMetadata;
 var domainAndTitle = annotationMetadata.domainAndTitle;
@@ -247,15 +248,44 @@ describe('annotation-metadata', function () {
   });
 
   describe('.isOrphan', function () {
-    it('returns true if an annotation is marked orphan', function() {
-      assert.isTrue(annotationMetadata.isOrphan({
-        $orphan: true,
-      }));
+    it('returns true if an annotation was anchored', function () {
+      var annotation = Object.assign(fixtures.defaultAnnotation(), {$orphan: true});
+      assert.isTrue(annotationMetadata.isOrphan(annotation));
     });
-    it('returns false if an annotation is not marked an orphan', function() {
-      assert.isFalse(annotationMetadata.isOrphan({
+
+    it('returns false if an annotation failed to anchor', function() {
+      var orphan = Object.assign(fixtures.defaultAnnotation(), {$orphan: false});
+      assert.isFalse(annotationMetadata.isOrphan(orphan));
+    });
+  });
+
+  describe('.isWaitingToAnchor', function () {
+    var isWaitingToAnchor = annotationMetadata.isWaitingToAnchor;
+
+    it('returns true for annotations that are not yet anchored', function () {
+      assert.isTrue(isWaitingToAnchor(fixtures.defaultAnnotation()));
+    });
+
+    it('returns false for annotations that are anchored', function () {
+      var anchored = Object.assign({}, fixtures.defaultAnnotation(), {
         $orphan: false,
-      }));
+      });
+      assert.isFalse(isWaitingToAnchor(anchored));
+    });
+
+    it('returns false for annotations that failed to anchor', function () {
+      var anchored = Object.assign({}, fixtures.defaultAnnotation(), {
+        $orphan: true,
+      });
+      assert.isFalse(isWaitingToAnchor(anchored));
+    });
+
+    it('returns false for replies', function () {
+      assert.isFalse(isWaitingToAnchor(fixtures.oldReply()));
+    });
+
+    it('returns false for page notes', function () {
+      assert.isFalse(isWaitingToAnchor(fixtures.oldPageNote()));
     });
   });
 });
