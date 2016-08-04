@@ -10,6 +10,8 @@
 
 var immutable = require('seamless-immutable');
 var redux = require('redux');
+
+var metadata = require('./annotation-metadata');
 var uiConstants = require('./ui-constants');
 
 function freeze(selection) {
@@ -115,14 +117,30 @@ function excludeAnnotations(current, annotations) {
   });
 }
 
+function countIf(list, predicate) {
+  return list.reduce(function (count, item) {
+    return predicate(item) ? count + 1 : count;
+  }, 0);
+}
+
 function annotationsReducer(state, action) {
   switch (action.type) {
   case types.ADD_ANNOTATIONS:
     return Object.assign({}, state,
         {annotations: state.annotations.concat(action.annotations)});
   case types.REMOVE_ANNOTATIONS:
-    return Object.assign({}, state,
-        {annotations: excludeAnnotations(state.annotations, action.annotations)});
+    {
+      var annots = excludeAnnotations(state.annotations, action.annotations);
+      var selectedTab = state.selectedTab;
+      if (selectedTab === uiConstants.TAB_ORPHANS &&
+          countIf(annots, metadata.isOrphan) === 0) {
+        selectedTab = uiConstants.TAB_ANNOTATIONS;
+      }
+      return Object.assign({}, state, {
+        annotations: annots,
+        selectedTab: selectedTab,
+      });
+    }
   case types.CLEAR_ANNOTATIONS:
     return Object.assign({}, state, {annotations: []});
   case types.UPDATE_ANCHOR_STATUS:
