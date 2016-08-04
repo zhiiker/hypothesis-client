@@ -13,6 +13,7 @@ var redux = require('redux');
 
 var metadata = require('./annotation-metadata');
 var uiConstants = require('./ui-constants');
+var countIf = require('./util/array-util').countIf;
 
 function freeze(selection) {
   if (Object.keys(selection).length) {
@@ -115,12 +116,6 @@ function excludeAnnotations(current, annotations) {
                        (annot.$$tag && (annot.$$tag in tags));
     return !shouldRemove;
   });
-}
-
-function countIf(list, predicate) {
-  return list.reduce(function (count, item) {
-    return predicate(item) ? count + 1 : count;
-  }, 0);
 }
 
 function annotationsReducer(state, action) {
