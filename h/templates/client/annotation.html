@@ -10,6 +10,7 @@
         target="_blank"
         ng-href="{{vm.serviceUrl('user',{user:vm.user()})}}"
         >{{vm.username()}}</a>
+      <span>{{vm.annotation.id}}</span>
       <span class="annotation-collapsed-replies">
         <a class="annotation-link" href=""
           ng-click="vm.onReplyCountClick()"
