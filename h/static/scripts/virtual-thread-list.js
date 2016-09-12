@@ -29,10 +29,14 @@ function VirtualThreadList($scope, window_, rootThread) {
   // Cache of thread ID -> last-seen height
   this._heights = {};
 
+  // The recorded scroll position.
+  this.scrollPosition = null;
+
   this.window = window_;
 
   var debouncedUpdate = debounce(function () {
     self._updateVisibleThreads();
+    self.recordScrollPosition();
     $scope.$digest();
   }, 20);
   this.window.addEventListener('scroll', debouncedUpdate);
@@ -107,6 +111,32 @@ VirtualThreadList.prototype.yOffsetOf = function (id) {
   return allThreads.slice(0, matchIndex).reduce(function (offset, thread) {
     return offset + self._height(thread.id);
   }, 0);
+};
+
+VirtualThreadList.prototype.recordScrollPosition = function () {
+  var allThreads = this._rootThread.children;
+  var scrollPosition = this.window.pageYOffset;
+  var usedHeight = 0;
+
+  // Reset scrollPosition to be null, so we don't try and scroll to a
+  // nonexistent thread.
+  this.scrollPosition = null;
+
+  for (var i = 0; i < allThreads.length; i++) {
+    var threadHeight = this._height(allThreads[i].id);
+    if (usedHeight + threadHeight > scrollPosition) {
+      this.scrollPosition = {
+        id: allThreads[i].id,
+        offset: scrollPosition - usedHeight,
+      };
+      break;
+    }
+    usedHeight += threadHeight;
+  }
+
+  if (this.scrollPosition) {
+    console.log('first visible thread is', this.scrollPosition.id, this.scrollPosition.offset);
+  }
 };
 
 /**

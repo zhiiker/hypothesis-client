@@ -439,6 +439,16 @@ module.exports = function WidgetController(
     }, 200);
   }
 
+  function restoreScrollPosition() {
+    if (!visibleThreads.scrollPosition) {
+      return;
+    }
+    var scrollTo = scrollOffset(visibleThreads.scrollPosition.id);
+    scrollTo += visibleThreads.scrollPosition.offset;
+    console.log('restoring to', scrollTo);
+    window.scroll(0, scrollTo);
+  }
+
   $scope.$on(events.BEFORE_ANNOTATION_CREATED, function (event, data) {
     if (data.$highlight || (data.references && data.references.length > 0)) {
       return;
@@ -446,4 +456,7 @@ module.exports = function WidgetController(
     $scope.clearSelection();
     scrollIntoView(data.$$tag);
   });
+
+  $scope.$on(events.ANNOTATIONS_LOADED, restoreScrollPosition);
+  $scope.$on(events.ANNOTATIONS_UNLOADED, restoreScrollPosition);
 };
