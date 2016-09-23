@@ -71,7 +71,9 @@ function oldAnnotation() {
   return {
     id: 'annotation_id',
     $highlight: undefined,
-    target: ['foo', 'bar'],
+    target: [{
+      selector: [{type: 'TextQuoteSelector', exact: 'some text'}],
+    }],
     references: [],
     text: 'This is my annotation',
     tags: ['tag_1', 'tag_2'],
@@ -97,6 +99,7 @@ function oldHighlight() {
  */
 function oldPageNote() {
   return {
+    id: 'pagenote-id',
     highlight: undefined,
     target: [],
     references: [],

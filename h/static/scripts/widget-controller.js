@@ -3,9 +3,7 @@
 var SearchClient = require('./search-client');
 var events = require('./events');
 var memoize = require('./util/memoize');
-var metadata = require('./annotation-metadata');
 var tabCounts = require('./tab-counts');
-var uiConstants = require('./ui-constants');
 
 function firstKey(object) {
   for (var k in object) {
@@ -74,23 +72,6 @@ module.exports = function WidgetController(
       return;
     }
     frameSync.scrollToAnnotation(annotation.$$tag);
-  }
-
-  /** Returns the annotation type - note or annotation of the first annotation
-   *  in `results` whose ID is a key in `selectedAnnotationMap`.
-   */
-  function tabContainingAnnotation(annot) {
-    if (metadata.isOrphan(annot)) {
-      if (features.flagEnabled('orphans_tab')) {
-        return uiConstants.TAB_ORPHANS;
-      } else {
-        return uiConstants.TAB_ANNOTATIONS;
-      }
-    } else if (metadata.isPageNote(annot)) {
-      return uiConstants.TAB_NOTES;
-    } else {
-      return uiConstants.TAB_ANNOTATIONS;
-    }
   }
 
   /**
@@ -248,9 +229,6 @@ module.exports = function WidgetController(
     }
     focusAnnotation(selectedAnnot);
     scrollToAnnotation(selectedAnnot);
-
-    var targetTab = tabContainingAnnotation(selectedAnnot);
-    annotationUI.selectTab(targetTab);
   });
 
   $scope.$on(events.GROUP_FOCUSED, function () {

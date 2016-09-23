@@ -12,6 +12,7 @@
 
 var immutable = require('seamless-immutable');
 
+var metadata = require('../annotation-metadata');
 var uiConstants = require('../ui-constants');
 
 var util = require('./util');
@@ -297,6 +298,23 @@ function clearSelectedAnnotations() {
   return {type: actions.CLEAR_SELECTION};
 }
 
+/**
+ * Helper which returns the tab that a given annotation will be displayed in
+ */
+function tabContainingAnnotation(features, annot) {
+  if (metadata.isOrphan(annot)) {
+    if (features['orphans_tab']) { // eslint-disable-line dot-notation
+      return uiConstants.TAB_ORPHANS;
+    } else {
+      return uiConstants.TAB_ANNOTATIONS;
+    }
+  } else if (metadata.isPageNote(annot)) {
+    return uiConstants.TAB_NOTES;
+  } else {
+    return uiConstants.TAB_ANNOTATIONS;
+  }
+}
+
 module.exports = {
   init: init,
   update: update,
@@ -318,4 +336,7 @@ module.exports = {
   // Selectors
   hasSelectedAnnotations: hasSelectedAnnotations,
   isAnnotationSelected: isAnnotationSelected,
+
+  // Helpers
+  tabContainingAnnotation: tabContainingAnnotation,
 };

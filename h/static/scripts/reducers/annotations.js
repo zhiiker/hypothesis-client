@@ -12,6 +12,11 @@ var uiConstants = require('../ui-constants');
 var selection = require('./selection');
 var util = require('./util');
 
+var isAnnotationSelected = selection.isAnnotationSelected;
+var selectTab = selection.actions.selectTab;
+var tabContainingAnnotation = selection.tabContainingAnnotation;
+var selectTabUpdate = selection.update.SELECT_TAB;
+
 /**
  * Return a copy of `current` with all matching annotations in `annotations`
  * removed.
@@ -87,6 +92,7 @@ var update = {
     var unchanged = [];
     var updated = [];
     var nextTag = state.nextTag;
+    var tabChanges;
 
     action.annotations.forEach(function (annot) {
       var existing;
@@ -108,6 +114,13 @@ var update = {
           updatedTags[existing.$$tag] = true;
         }
       } else {
+        // If a newly loaded annotation is already selected, then switch to its
+        // containing tab
+        if (annot.id && isAnnotationSelected(state, annot.id)) {
+          tabChanges = selectTabUpdate(state,
+            selectTab(tabContainingAnnotation(state.session.features, annot)));
+        }
+
         added.push(initializeAnnot(annot, 't' + nextTag));
         ++nextTag;
       }
@@ -119,10 +132,10 @@ var update = {
       }
     });
 
-    return {
+    return Object.assign({
       annotations: added.concat(updated).concat(unchanged),
       nextTag: nextTag,
-    };
+    }, tabChanges);
   },
 
   REMOVE_ANNOTATIONS: function (state, action) {
@@ -133,10 +146,9 @@ var update = {
       selectedTab = uiConstants.TAB_ANNOTATIONS;
     }
 
-    var tabUpdateFn = selection.update.SELECT_TAB;
     return Object.assign(
       {annotations: annots},
-      tabUpdateFn(state, selection.actions.selectTab(selectedTab))
+      selectTabUpdate(state, selectTab(selectedTab))
     );
   },
 
@@ -145,19 +157,34 @@ var update = {
   },
 
   UPDATE_ANCHOR_STATUS: function (state, action) {
+    var tabChanges;
     var annotations = state.annotations.map(function (annot) {
       var match = (annot.id && annot.id === action.id) ||
                   (annot.$$tag && annot.$$tag === action.tag);
       if (match) {
-        return Object.assign({}, annot, {
+        var updatedAnnot = Object.assign({}, annot, {
           $orphan: action.isOrphan,
           $$tag: action.tag,
         });
+
+        // If a selected annotation moves to a different tab, then update the
+        // selected tab accordingly
+        if (isAnnotationSelected(state, annot.id)) {
+          var selectedTab = tabContainingAnnotation(state.session.features,
+            updatedAnnot);
+          tabChanges = selectTabUpdate(state, selectTab(selectedTab));
+        }
+
+        return updatedAnnot;
       } else {
         return annot;
       }
     });
-    return {annotations: annotations};
+
+    return Object.assign(
+      {annotations: annotations},
+      tabChanges
+    );
   },
 };
 

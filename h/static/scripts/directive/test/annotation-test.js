@@ -113,7 +113,7 @@ describe('annotation', function() {
     }
 
     before(function() {
-      angular.module('h', [])
+      angular.module('h', [require('angular-sanitize')])
         .directive('annotation', annotationDirective());
     });
 
