@@ -10,6 +10,7 @@ adder = require('./adder')
 highlighter = require('./highlighter')
 rangeUtil = require('./range-util')
 selections = require('./selections')
+detections = require('./detections')
 
 animationPromise = (fn) ->
   return new Promise (resolve, reject) ->
@@ -74,6 +75,13 @@ module.exports = class Guest extends Annotator
           self._onClearSelection()
 
     this.anchors = []
+
+    # attach detections to notify us when things need to changes
+    detections.addListeners({
+      onEvent: (eventName) =>
+        switch eventName
+          when 'urlChanged' then self.publish('urlChanged')
+    })
 
     cfOptions =
       on: (event, handler) =>
@@ -438,4 +446,3 @@ module.exports = class Guest extends Annotator
       @element.removeClass(SHOW_HIGHLIGHTS_CLASS)
 
     @visibleHighlights = shouldShowHighlights
-

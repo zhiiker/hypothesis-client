@@ -49,11 +49,16 @@ module.exports = class AnnotationSync
       @_emit('annotationsLoaded', annotations)
       cb(null, annotations)
 
+
+
   # Handlers for events coming from this frame, to send them across the channel
   _eventListeners:
     'beforeAnnotationCreated': (annotation) ->
       return if annotation.$$tag?
       this._mkCallRemotelyAndParseResults('beforeCreateAnnotation')(annotation)
+
+    'urlChanged': () ->
+      @bridge.call 'urlChanged'
 
   _mkCallRemotelyAndParseResults: (method, callBack) ->
     (annotation) =>
