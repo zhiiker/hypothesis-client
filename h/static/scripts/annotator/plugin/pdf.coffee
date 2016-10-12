@@ -65,7 +65,7 @@ module.exports = class PDF extends Annotator.Plugin
             placeholder.parentNode.removeChild(placeholder)
 
     # Find all the anchors that have been invalidated by page state changes.
-    for anchor in annotator.anchors when anchor.highlights?
+    for anchor in annotator.anchors when anchor.highlight?
       # Skip any we already know about.
       if anchor.annotation in refreshAnnotations
         continue
@@ -73,12 +73,12 @@ module.exports = class PDF extends Annotator.Plugin
       # If the highlights are no longer in the document it means that either
       # the page was destroyed by PDF.js or the placeholder was removed above.
       # The annotations for these anchors need to be refreshed.
-      for hl in anchor.highlights
-        if not document.body.contains(hl)
-          delete anchor.highlights
-          delete anchor.range
-          refreshAnnotations.push(anchor.annotation)
-          break
+      if not document.body.contains(anchor.highlight.node())
+        anchor.highlight.remove()
+        delete anchor.highlight
+        delete anchor.range
+        refreshAnnotations.push(anchor.annotation)
+        break
 
     for annotation in refreshAnnotations
       annotator.anchor(annotation)
