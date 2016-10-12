@@ -30,6 +30,15 @@ normalizeURI = (uri, baseURI) ->
   # See https://github.com/hypothesis/h/issues/3471#issuecomment-226713750
   return url.toString().replace(/#.*/, '');
 
+simplifyQuote = (str) ->
+  return str.replace(/[^\w]+/g,'').toLowerCase()
+
+rangeMatchesQuote = (range, quote) ->
+  actual = simplifyQuote(range.toString())
+  expected = simplifyQuote(quote)
+
+  return actual == expected
+
 module.exports = class Guest extends Annotator
   SHOW_HIGHLIGHTS_CLASS = 'annotator-highlights-always-on'
 
@@ -187,7 +196,7 @@ module.exports = class Guest extends Annotator
     # Initialize the target array.
     annotation.target ?= []
 
-    locate = (target) ->
+    locate = (target, attempt = 0) ->
       # Check that the anchor has a TextQuoteSelector -- without a
       # TextQuoteSelector we have no basis on which to verify that we have
       # reanchored correctly and so we shouldn't even try.
@@ -203,13 +212,31 @@ module.exports = class Guest extends Annotator
         ignoreSelector: '[class^="annotator-"]'
       }
       return self.anchoring.anchor(root, target.selector, options)
-      .then((range) -> {annotation, target, range})
-      .catch(-> {annotation, target})
+      .then((range) -> {
+          annotation,
+          target,
+          range,
+
+          # Record the text that was originally anchored. If the Range is later
+          # invalidated by DOM changes before we come to highlight the annotation,
+          # we can detect this and retry anchoring
+          attempt,
+          quote: range.toString()
+        })
+      .catch(-> {annotation, target, attempt})
 
     highlight = (anchor) ->
       # Highlight the range for an anchor.
       return anchor unless anchor.range?
       return animationPromise ->
+        # If the range has become invalidated, then re-try anchoring
+        if !rangeMatchesQuote(anchor.range, anchor.quote)
+          if anchor.attempt < 2
+            return locate(anchor.annotation.target[0], anchor.attempt + 1).then(highlight)
+          else
+            # Give up attempting to re-anchor
+            return anchor
+
         hl = new Highlight(anchor.range, {
           className: 'annotator-hl',
           onClick: (e) -> self.onHighlightClick(e, anchor.annotation),
