@@ -48,7 +48,7 @@ function updateModel(annotation, changes, permissions) {
 // @ngInject
 function AnnotationController(
   $document, $q, $rootScope, $scope, $timeout, $window, analytics, annotationUI,
-  annotationMapper, drafts, flash, features, groups, permissions, serviceUrl,
+  annotationMapper, flash, features, groups, permissions, serviceUrl,
   session, settings, store, streamer) {
 
   var vm = this;
@@ -163,7 +163,7 @@ function AnnotationController(
     // created by the annotate button) or it has edits not yet saved to the
     // server - then open the editor on AnnotationController instantiation.
     if (!newlyCreatedByHighlightButton) {
-      if (isNew(vm.annotation) || drafts.get(vm.annotation)) {
+      if (isNew(vm.annotation) || annotationUI.getDraft(vm.annotation)) {
         vm.edit();
       }
     }
@@ -199,7 +199,7 @@ function AnnotationController(
       });
     } else {
       // User isn't logged in, save to drafts.
-      drafts.update(vm.annotation, vm.state());
+      annotationUI.updateDraft(vm.annotation, vm.state());
     }
   }
 
@@ -261,8 +261,8 @@ function AnnotationController(
     * @description Switches the view to an editor.
     */
   vm.edit = function() {
-    if (!drafts.get(vm.annotation)) {
-      drafts.update(vm.annotation, vm.state());
+    if (!annotationUI.getDraft(vm.annotation)) {
+      annotationUI.updateDraft(vm.annotation, vm.state());
     }
   };
 
@@ -273,7 +273,7 @@ function AnnotationController(
    *   (i.e. the annotation editor form should be open), `false` otherwise.
    */
   vm.editing = function() {
-    return drafts.get(vm.annotation) && !vm.isSaving;
+    return annotationUI.getDraft(vm.annotation) && !vm.isSaving;
   };
 
   /**
@@ -381,7 +381,7 @@ function AnnotationController(
     * @description Reverts an edit in progress and returns to the viewer.
     */
   vm.revert = function() {
-    drafts.remove(vm.annotation);
+    annotationUI.removeDraft(vm.annotation);
     if (isNew(vm.annotation)) {
       $rootScope.$broadcast(events.ANNOTATION_DELETED, vm.annotation);
     }
@@ -410,7 +410,7 @@ function AnnotationController(
 
       var event = isNew(vm.annotation) ?
         events.ANNOTATION_CREATED : events.ANNOTATION_UPDATED;
-      drafts.remove(vm.annotation);
+      annotationUI.removeDraft(vm.annotation);
 
       $rootScope.$broadcast(event, updatedModel);
     }).catch(function (reason) {
@@ -440,7 +440,7 @@ function AnnotationController(
     if (!isReply(vm.annotation)) {
       permissions.setDefault(privacy);
     }
-    drafts.update(vm.annotation, {
+    annotationUI.updateDraft(vm.annotation, {
       tags: vm.state().tags,
       text: vm.state().text,
       isPrivate: privacy === 'private',
@@ -520,7 +520,7 @@ function AnnotationController(
   };
 
   vm.setText = function (text) {
-    drafts.update(vm.annotation, {
+    annotationUI.updateDraft(vm.annotation, {
       isPrivate: vm.state().isPrivate,
       tags: vm.state().tags,
       text: text,
@@ -528,7 +528,7 @@ function AnnotationController(
   };
 
   vm.setTags = function (tags) {
-    drafts.update(vm.annotation, {
+    annotationUI.updateDraft(vm.annotation, {
       isPrivate: vm.state().isPrivate,
       tags: tags,
       text: vm.state().text,
@@ -536,7 +536,7 @@ function AnnotationController(
   };
 
   vm.state = function () {
-    var draft = drafts.get(vm.annotation);
+    var draft = annotationUI.getDraft(vm.annotation);
     if (draft) {
       return draft;
     }

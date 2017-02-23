@@ -14,7 +14,6 @@ describe('AppController', function () {
   var fakeAnnotationUI = null;
   var fakeAnalytics = null;
   var fakeAuth = null;
-  var fakeDrafts = null;
   var fakeFeatures = null;
   var fakeFrameSync = null;
   var fakeLocation = null;
@@ -57,6 +56,10 @@ describe('AppController', function () {
     fakeAnnotationUI = {
       tool: 'comment',
       clearSelectedAnnotations: sandbox.spy(),
+
+      clearDrafts: sandbox.stub(),
+      countDrafts: sandbox.stub().returns(0),
+      unsavedDrafts: sandbox.stub().returns([]),
     };
 
     fakeAnalytics = {
@@ -65,15 +68,6 @@ describe('AppController', function () {
     };
 
     fakeAuth = {};
-
-    fakeDrafts = {
-      contains: sandbox.stub(),
-      remove: sandbox.spy(),
-      all: sandbox.stub().returns([]),
-      discard: sandbox.spy(),
-      count: sandbox.stub().returns(0),
-      unsaved: sandbox.stub().returns([]),
-    };
 
     fakeFeatures = {
       fetch: sandbox.spy(),
@@ -114,7 +108,6 @@ describe('AppController', function () {
     $provide.value('annotationUI', fakeAnnotationUI);
     $provide.value('auth', fakeAuth);
     $provide.value('analytics', fakeAnalytics);
-    $provide.value('drafts', fakeDrafts);
     $provide.value('features', fakeFeatures);
     $provide.value('frameSync', fakeFrameSync);
     $provide.value('serviceUrl', fakeServiceUrl);
@@ -268,7 +261,7 @@ describe('AppController', function () {
     });
 
     it('prompts the user if there are drafts', function () {
-      fakeDrafts.count.returns(1);
+      fakeAnnotationUI.countDrafts.returns(1);
       createController();
 
       $scope.logout();
@@ -277,7 +270,7 @@ describe('AppController', function () {
     });
 
     it('emits "annotationDeleted" for each unsaved draft annotation', function () {
-      fakeDrafts.unsaved = sandbox.stub().returns(
+      fakeAnnotationUI.unsavedDrafts = sandbox.stub().returns(
         ['draftOne', 'draftTwo', 'draftThree']
       );
       createController();
@@ -285,7 +278,7 @@ describe('AppController', function () {
 
       $scope.logout();
 
-      assert($rootScope.$emit.calledThrice);
+      assert.calledThrice($rootScope.$emit);
       assert.deepEqual(
         $rootScope.$emit.firstCall.args, ['annotationDeleted', 'draftOne']);
       assert.deepEqual(
@@ -299,33 +292,33 @@ describe('AppController', function () {
 
       $scope.logout();
 
-      assert(fakeDrafts.discard.calledOnce);
+      assert.calledOnce(fakeAnnotationUI.clearDrafts);
     });
 
     it('does not emit "annotationDeleted" if the user cancels the prompt', function () {
       createController();
-      fakeDrafts.count.returns(1);
+      fakeAnnotationUI.countDrafts.returns(1);
       $rootScope.$emit = sandbox.stub();
       fakeWindow.confirm.returns(false);
 
       $scope.logout();
 
-      assert($rootScope.$emit.notCalled);
+      assert.notCalled($rootScope.$emit);
     });
 
     it('does not discard drafts if the user cancels the prompt', function () {
       createController();
-      fakeDrafts.count.returns(1);
+      fakeAnnotationUI.countDrafts.returns(1);
       fakeWindow.confirm.returns(false);
 
       $scope.logout();
 
-      assert(fakeDrafts.discard.notCalled);
+      assert(fakeAnnotationUI.clearDrafts.notCalled);
     });
 
     it('does not prompt if there are no drafts', function () {
       createController();
-      fakeDrafts.count.returns(0);
+      fakeAnnotationUI.countDrafts.returns(0);
 
       $scope.logout();
 

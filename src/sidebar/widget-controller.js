@@ -32,7 +32,7 @@ function groupIDFromSelection(selection, results) {
 
 // @ngInject
 module.exports = function WidgetController(
-  $scope, analytics, annotationUI, annotationMapper, drafts, features, frameSync,
+  $scope, analytics, annotationUI, annotationMapper, features, frameSync,
   groups, rootThread, settings, streamer, streamFilter, store
 ) {
   function thread() {

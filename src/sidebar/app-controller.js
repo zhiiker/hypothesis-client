@@ -24,7 +24,7 @@ function authStateFromUserID(userid) {
 // @ngInject
 module.exports = function AppController(
   $document, $location, $rootScope, $route, $scope,
-  $window, annotationUI, auth, drafts, features, frameSync, groups,
+  $window, annotationUI, auth, features, frameSync, groups,
   serviceUrl, session, settings, streamer
 ) {
 
@@ -112,14 +112,15 @@ module.exports = function AppController(
   var promptToLogout = function () {
     // TODO - Replace this with a UI which doesn't look terrible.
     var text = '';
-    if (drafts.count() === 1) {
+    var count = annotationUI.countDrafts();
+    if (count === 1) {
       text = 'You have an unsaved annotation.\n' +
         'Do you really want to discard this draft?';
-    } else if (drafts.count() > 1) {
-      text = 'You have ' + drafts.count() + ' unsaved annotations.\n' +
+    } else if (count > 1) {
+      text = 'You have ' + count + ' unsaved annotations.\n' +
         'Do you really want to discard these drafts?';
     }
-    return (drafts.count() === 0 || $window.confirm(text));
+    return (count === 0 || $window.confirm(text));
   };
 
   // Log the user out.
@@ -127,10 +128,10 @@ module.exports = function AppController(
     if (!promptToLogout()) {
       return;
     }
-    drafts.unsaved().forEach(function (draft) {
+    annotationUI.unsavedDrafts().forEach(function (draft) {
       $rootScope.$emit(events.ANNOTATION_DELETED, draft);
     });
-    drafts.discard();
+    annotationUI.clearDrafts();
     $scope.accountDialog.visible = false;
     session.logout();
   };
