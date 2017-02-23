@@ -38,6 +38,7 @@ var thunk = require('redux-thunk').default;
 
 var reducers = require('./reducers');
 var annotationsReducer = require('./reducers/annotations');
+var draftsReducer = require('./reducers/drafts');
 var framesReducer = require('./reducers/frames');
 var selectionReducer = require('./reducers/selection');
 var sessionReducer = require('./reducers/session');
@@ -94,6 +95,7 @@ module.exports = function ($rootScope, settings) {
   //
   var actionCreators = redux.bindActionCreators(Object.assign({},
     annotationsReducer.actions,
+    draftsReducer.actions,
     framesReducer.actions,
     selectionReducer.actions,
     sessionReducer.actions,
@@ -118,6 +120,10 @@ module.exports = function ($rootScope, settings) {
     frames: framesReducer.frames,
 
     isSidebar: viewerReducer.isSidebar,
+
+    countDrafts: draftsReducer.countDrafts,
+    getDraft: draftsReducer.getDraft,
+    unsavedDrafts: draftsReducer.unsavedDrafts,
   }, store.getState);
 
   return Object.assign(store, actionCreators, selectors);
