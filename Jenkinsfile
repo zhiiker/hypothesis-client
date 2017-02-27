@@ -3,6 +3,13 @@
 node {
     checkout scm
 
+    // Upload the contents of the package to an S3 bucket, which it
+    // will then be served from.
+    docker.image('nickstenning/s3-npm-publish')
+          .withRun('', 'hypothesis s3://cdn.hypothes.is') { /* empty */ }
+
+    // TESTING
+/*
     nodeEnv = docker.image("node:6.2")
     workspace = pwd()
 
@@ -27,12 +34,8 @@ node {
                 sh "npm publish"
             }
         }
-
-        // Upload the contents of the package to an S3 bucket, which it
-        // will then be served from.
-        docker.image('nickstenning/s3-npm-publish')
-              .withRun('', 'hypothesis s3://cdn.hypothes.is') { /* empty */ }
     }
+*/
 }
 
 boolean isTag() {
