@@ -12,7 +12,7 @@
       <p><input class="js-via form-input"
           type="text"
           ng-value="vm.viaPageLink"
-          readonly /></p>
+          readonly ng-copy="onShareClick('linkCopy')"/></p>
       <p class="share-link-icons">
       <a href="https://twitter.com/intent/tweet?url={{vm.viaPageLink | urlEncode}}&hashtags=annotated"
          target="_blank"

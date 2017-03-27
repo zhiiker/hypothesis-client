@@ -24,7 +24,7 @@
   </div>
   <div class="annotation-share-dialog-link" type="text">
     <input class="annotation-share-dialog-link__text"
-      value="{{vm.uri}}" readonly>
+      value="{{vm.uri}}" readonly ng-copy="::onShareClick('test')">
     <span class="annotation-share-dialog-link__feedback" ng-if="vm.copyToClipboardMessage">
       {{vm.copyToClipboardMessage}}
     </span>

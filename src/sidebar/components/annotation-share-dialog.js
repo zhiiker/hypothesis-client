@@ -67,6 +67,7 @@ module.exports = {
         analytics.track(analytics.events.ANNOTATION_SHARED, target);
       }
     };
+
   },
   bindings: {
     group: '<',

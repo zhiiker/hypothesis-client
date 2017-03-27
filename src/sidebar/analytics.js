@@ -51,6 +51,7 @@ function analytics($analytics, $window, settings) {
      *  words.
      */
     track: function(event, label, metricValue){
+      console.log(event, label);
       $analytics.eventTrack(event, Object.assign({}, {
         label: label || undefined,
         metricValue: isNaN(metricValue) ? undefined : metricValue,
