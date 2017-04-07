@@ -146,6 +146,7 @@ describe('annotation', function() {
       };
 
       fakeAnnotationUI = {
+        currentUserid: sandbox.stub().returns('acct:bill@localhost'),
         updateFlagStatus: sandbox.stub().returns(true),
       };
 
@@ -773,6 +774,7 @@ describe('annotation', function() {
       });
 
       it('returns the value of the `flag_action` feature flag', function () {
+        fakeAnnotationUI.currentUserid.returns('acct:moderator@hypothes.is');
         var controller = createDirective().controller;
 
         fakeFeatures.flagEnabled.returns(false);
@@ -780,6 +782,13 @@ describe('annotation', function() {
 
         fakeFeatures.flagEnabled.returns(true);
         assert.equal(controller.canFlag(), true);
+      });
+
+      it('returns false if the user created the annotation', function () {
+        var ann = fixtures.defaultAnnotation();
+        var controller = createDirective(ann).controller;
+        fakeAnnotationUI.currentUserid.returns(ann.user);
+        assert.equal(controller.canFlag(), false);
       });
     });
 
@@ -1027,19 +1036,31 @@ describe('annotation', function() {
       });
     });
 
-    it('flags the annotation when the user clicks the "Flag" button', function () {
-      fakeAnnotationMapper.flagAnnotation.returns(Promise.resolve());
-      var el = createDirective().element;
-      var flagBtn = el[0].querySelector('button[aria-label="Flag"]');
-      flagBtn.click();
-      assert.called(fakeAnnotationMapper.flagAnnotation);
-    });
+    describe('flagging an annotation', function () {
+      beforeEach(function () {
+        // Users cannot flag their own annotations, so make the current user
+        // different to the user associated with the default annotation.
+        fakeAnnotationUI.currentUserid.returns('acct:moderator@hypothes.is');
+      });
 
-    it('highlights the "Flag" button if the annotation is flagged', function () {
-      var ann = Object.assign(fixtures.defaultAnnotation(), { flagged: true });
-      var el = createDirective(ann).element;
-      var flaggedBtn = el[0].querySelector('button[aria-label="Annotation has been flagged"]');
-      assert.ok(flaggedBtn);
+      it('flags the annotation when the user clicks the "Flag" button', function () {
+        fakeAnnotationMapper.flagAnnotation.returns(Promise.resolve());
+
+        var el = createDirective().element;
+        var flagBtn = el[0].querySelector('button[aria-label="Flag"]');
+        flagBtn.click();
+
+        assert.called(fakeAnnotationMapper.flagAnnotation);
+      });
+
+      it('highlights the "Flag" button if the annotation is flagged', function () {
+        var ann = Object.assign(fixtures.defaultAnnotation(), { flagged: true });
+
+        var el = createDirective(ann).element;
+        var flaggedBtn = el[0].querySelector('button[aria-label="Annotation has been flagged"]');
+
+        assert.ok(flaggedBtn);
+      });
     });
   });
 });

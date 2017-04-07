@@ -483,6 +483,10 @@ function AnnotationController(
   };
 
   vm.canFlag = function () {
+    if (vm.annotation.user === annotationUI.currentUserid()) {
+      // Prevent users from flagging their own annotations
+      return false;
+    }
     if (persona.isThirdPartyUser(vm.annotation.user, settings.authDomain)) {
       return true;
     }
