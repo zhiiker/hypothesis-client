@@ -60,6 +60,13 @@ function isFeatureEnabled(state, feature) {
   return !!state.session.features[feature];
 }
 
+/**
+ * Return the userid of the logged in user.
+ */
+function currentUserid(state) {
+  return state.session.userid;
+}
+
 module.exports = {
   init: init,
   update: update,
@@ -69,5 +76,6 @@ module.exports = {
   },
 
   // Selectors
+  currentUserid: currentUserid,
   isFeatureEnabled: isFeatureEnabled,
 };

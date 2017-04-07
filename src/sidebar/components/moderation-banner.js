@@ -14,6 +14,14 @@ function ModerationBannerController(annotationUI, flash, store) {
     return self.annotation.hidden;
   };
 
+  this.canModerate = function () {
+    if (self.annotation.user === annotationUI.currentUserid()) {
+      // Prevent users from moderating their own annotations
+      return false;
+    }
+    return self.flagCount() > 0 || self.isHidden();
+  };
+
   this.isReply = function () {
     return annotationMetadata.isReply(self.annotation);
   };

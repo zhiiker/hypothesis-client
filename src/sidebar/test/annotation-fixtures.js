@@ -133,17 +133,15 @@ function oldPageNote() {
   };
 }
 
-/** Return an annotation domain model object for an existing reply
- *  received from the server.
+/**
+ * Return an annotation domain model object for an existing reply
+ * received from the server.
  */
 function oldReply() {
-  return {
-    highlight: undefined,
-    target: ['foo'],
-    references: ['parent_annotation_id'],
-    text: '',
-    tags: [],
-  };
+  var ann = defaultAnnotation();
+  ann.target = [{ source: 'source' }];
+  ann.references = ['parent_annotation_id'];
+  return ann;
 }
 
 /**

@@ -20,6 +20,7 @@ describe('moderationBanner', function () {
 
   beforeEach(function () {
     fakeAnnotationUI = {
+      currentUserid: sinon.stub(),
       hideAnnotation: sinon.stub(),
       unhideAnnotation: sinon.stub(),
     };
@@ -54,6 +55,13 @@ describe('moderationBanner', function () {
 
   it('does not display if annotation is not flagged or hidden', function () {
     var banner = createBanner({ annotation: fixtures.defaultAnnotation() });
+    assert.equal(banner.textContent.trim(), '');
+  });
+
+  it('does not display if annotation belongs to current user', function () {
+    var ann = fixtures.defaultAnnotation();
+    fakeAnnotationUI.currentUserid.returns(ann.user);
+    var banner = createBanner({ annotation: ann });
     assert.equal(banner.textContent.trim(), '');
   });
 

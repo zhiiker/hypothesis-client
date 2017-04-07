@@ -16,4 +16,17 @@ describe('session reducer', function () {
       assert.deepEqual(state.session, newSession);
     });
   });
+
+  describe('#currentUserid', function () {
+    it('returns `null` if the user is not logged-in', function () {
+      var state = init();
+      assert.equal(session.currentUserid(state), null);
+    });
+
+    it('returns the current logged-in user ID', function () {
+      var newSession = { userid: 'acct:user@hypothes.is' };
+      var state = update(init(), actions.updateSession(newSession));
+      assert.equal(session.currentUserid(state), 'acct:user@hypothes.is');
+    });
+  });
 });
