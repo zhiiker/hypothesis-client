@@ -51,7 +51,7 @@ function getAuthority(settings) {
  *  - Persisting credentials for use in future sessions.
  */
 // @ngInject
-function auth($http, flash, localStorage, settings) {
+function auth($http, $window, flash, localStorage, settings) {
 
   /**
    * Grant token returned by the OAuth authorization endpoint after the
@@ -64,6 +64,13 @@ function auth($http, flash, localStorage, settings) {
    * Endpoint which can exchange grant tokens for access tokens.
    */
   var tokenUrl = resolve('token', settings.apiUrl);
+
+  /**
+   * A duration that is randomized per client instance.
+   * Used to avoid multiple clients trying to refresh the same token at the
+   * same time.
+   */
+  var jitter = Math.random() * 120 * 1000;
 
   /**
    * Show an error message telling the user that the access token has expired.
@@ -206,7 +213,7 @@ function auth($http, flash, localStorage, settings) {
 
     // If the token info's refreshAfter time will have passed before the next
     // time we poll, then refresh the token this time.
-    var refreshAfter = tokenInfo.expiresAt - delay;
+    var refreshAfter = tokenInfo.expiresAt - delay - jitter;
 
     function refreshAccessTokenIfNearExpiry() {
       if (Date.now() > refreshAfter) {
@@ -318,6 +325,17 @@ function auth($http, flash, localStorage, settings) {
     }).then(tokenInfoFrom);
   }
 
+  function loadTokenFromStorage() {
+    var authority = getAuthority(settings);
+    var lastToken = readLastUsedToken(authority);
+    if (lastToken) {
+      accessTokenPromise = Promise.resolve(lastToken.accessToken);
+      refreshAccessTokenBeforeItExpires(lastToken);
+      return true;
+    }
+    return false;
+  }
+
   /**
    * Load credentials from the previous session, if available.
    */
@@ -328,13 +346,9 @@ function auth($http, flash, localStorage, settings) {
       return;
     }
 
-    var authority = getAuthority(settings);
-    var lastToken = readLastUsedToken(authority);
-    if (lastToken) {
-      // Re-use existing saved credentials.
-      accessTokenPromise = Promise.resolve(lastToken.accessToken);
-      refreshAccessTokenBeforeItExpires(lastToken);
-    } else {
+    var authority = getAuthority();
+
+    if (!loadTokenFromStorage()) {
       // Attempt to login automatically.
       accessTokenPromise = autoLogin().then((token) => {
         saveLastUsedToken(authority, token);
@@ -345,6 +359,21 @@ function auth($http, flash, localStorage, settings) {
         return null;
       });
     }
+
+    // If another instance of the client refreshes credentials, reload from
+    // storage.
+    //
+    // Note: It is also possible that this occurred as a result of a user
+    //       switching account in another client instance. Syncing the profile
+    //       state between client instances is currently not handled.
+    //
+    // FIXME: Use the "localStorage" service here so that all accesses to that
+    // API and events go through that service.
+    $window.addEventListener('storage', ({key}) => {
+      if (key === storageKey(authority)) {
+        loadTokenFromStorage();
+      }
+    });
   }
 
   init();
