@@ -24,6 +24,35 @@ function iframe(src) {
 }
 
 /**
+ * Return a sandboxed iframe.
+ *
+ * This is used when handling embeds from arbitrary URLs, which need to be
+ * locked down to minimize their ability to track users or otherwise cause a
+ * nuisance.
+ *
+ * @return {HTMLIFrameElement}
+ */
+function sandboxedIframe(src) {
+  var iframe = document.createElement('iframe');
+  iframe.src = src;
+  iframe.frameBorder = '0';
+
+  // Let the iframe know that it was used from within Hypothesis, but don't
+  // include any query params that were used when initializing the sidebar.
+  iframe.referrerPolicy = 'origin';
+
+  // Allow scripts so that interactive games etc. can function.
+  //
+  // Unfortunately in some browsers this breaks web fonts which do not set CORS
+  // headers 😞. Adding "allow-same-origin" would resolve this, but would also
+  // give the iframe access to localStorage and cookies and hence tracking
+  // tools.
+  iframe.sandbox = 'allow-scripts';
+
+  return iframe;
+}
+
+/**
  * Return a YouTube embed (<iframe>) DOM element for the given video ID.
  */
 function youTubeEmbed(id) {
@@ -108,6 +137,16 @@ var embedGenerators = [
     return null;
   },
 
+  // Replace links tagged by `render-markdown` with embeds.
+  function iframeFromEmbed(link) {
+    if (link.classList.contains('js-embed')) {
+      var iframe = sandboxedIframe(link.href);
+      iframe.className = 'annotation-embed';
+      return iframe;
+    }
+    return null;
+  },
+
 ];
 
 /**
@@ -117,7 +156,6 @@ var embedGenerators = [
  * return an embed DOM element (for example an <iframe>) for that media.
  *
  * Otherwise return undefined.
- *
  */
 function embedForLink(link) {
   var embed;
