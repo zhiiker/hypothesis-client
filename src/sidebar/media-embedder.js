@@ -43,11 +43,21 @@ function sandboxedIframe(src) {
 
   // Allow scripts so that interactive games etc. can function.
   //
-  // Unfortunately in some browsers this breaks web fonts which do not set CORS
-  // headers 😞. Adding "allow-same-origin" would resolve this, but would also
-  // give the iframe access to localStorage and cookies and hence tracking
-  // tools.
-  iframe.sandbox = 'allow-scripts';
+  // Unfortunately in some browsers "allow-same-origin" is required for web
+  // fonts to work 😞. However it also gives the iframe access to localStorage
+  // and cookies and hence tracking tools.
+  //
+  // For the moment we resolve this by whitelisting this capability for specific
+  // origins.
+  var sandboxTokens = ['allow-scripts'];
+
+  var trustedHosts = ['h5p.org'];
+  var embedUrl = new URL(src);
+  if (trustedHosts.indexOf(embedUrl.hostname) !== -1) {
+    sandboxTokens.push('allow-same-origin');
+  }
+
+  iframe.sandbox = sandboxTokens.join(' ');
 
   return iframe;
 }
@@ -142,6 +152,16 @@ var embedGenerators = [
     if (link.classList.contains('js-embed')) {
       var iframe = sandboxedIframe(link.href);
       iframe.className = 'annotation-embed';
+
+      // This might be H5P content (https://h5p.org/).
+      // Load the resizer script which allows the iframe to dynamically resize
+      // to fit the height of its contents.
+      //
+      // Note that the resizer script requires the iframe's sandbox to include
+      // the "allow-same-origin" capability in Chrome in order to allow
+      // `postMessage`-based communication to work.
+      require('./vendor/h5p-resizer');
+
       return iframe;
     }
     return null;
