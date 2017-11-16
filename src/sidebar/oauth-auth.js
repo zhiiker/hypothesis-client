@@ -209,71 +209,85 @@ function auth($http, $rootScope, $window,
   }
 
   /**
+   * Return the token to be used for automatic login.
+   *
+   * @return {{ token: null|string } | null}
+   */
+  function autoLoginToken() {
+    var cfg = serviceConfig(settings);
+    if (!cfg || typeof cfg.grantToken === 'undefined') {
+      return null;
+    }
+    return { token: cfg.grantToken };
+  }
+
+  /**
+   * Perform initial fetch of access and refresh tokens for the API.
+   *
+   * @return {Promise<TokenInfo>}
+   */
+  function fetchTokens() {
+    // Fetch by exchanging a grant token provided by the host page.
+    var autoLogin = autoLoginToken();
+    if (autoLogin) {
+      if (autoLogin.token) {
+        return exchangeJWT(autoLogin.token).then((tokenInfo) => {
+          return tokenInfo;
+        }).catch(function(err) {
+          showAccessTokenExpiredErrorMessage(
+            'You must reload the page to annotate.');
+          throw err;
+        });
+      } else {
+        // User is anonymous on the publisher's website.
+        return Promise.resolve(null);
+      }
+    }
+
+    // Fetch via authorization code exchange after a call to `login()`.
+    if (authCode) {
+      var code = authCode;
+      authCode = null; // Auth codes can only be used once.
+      return exchangeAuthCode(code).then((tokenInfo) => {
+        saveToken(tokenInfo);
+        return tokenInfo;
+      });
+    }
+
+    // Fetch from browser storage after a previous session.
+    return Promise.resolve(loadToken());
+  }
+
+  /**
    * Retrieve an access token for the API.
    *
    * @return {Promise<string>} The API access token.
    */
   function tokenGetter() {
     if (!tokenInfoPromise) {
-      var cfg = serviceConfig(settings);
-
-      // Check if automatic login is being used, indicated by the presence of
-      // the 'grantToken' property in the service configuration.
-      if (cfg && typeof cfg.grantToken !== 'undefined') {
-        if (cfg.grantToken) {
-          // User is logged-in on the publisher's website.
-          // Exchange the grant token for a new access token.
-          tokenInfoPromise = exchangeJWT(cfg.grantToken).then((tokenInfo) => {
-            return tokenInfo;
-          }).catch(function(err) {
-            showAccessTokenExpiredErrorMessage(
-              'You must reload the page to annotate.');
-            throw err;
-          });
-        } else {
-          // User is anonymous on the publisher's website.
-          tokenInfoPromise = Promise.resolve(null);
-        }
-      } else if (authCode) {
-        // Exchange authorization code retrieved from login popup for a new
-        // access token.
-        var code = authCode;
-        authCode = null; // Auth codes can only be used once.
-        tokenInfoPromise = exchangeAuthCode(code).then((tokenInfo) => {
-          saveToken(tokenInfo);
-          return tokenInfo;
-        });
-      } else {
-        // Attempt to load the tokens from the previous session.
-        tokenInfoPromise = Promise.resolve(loadToken());
-      }
+      tokenInfoPromise = fetchTokens();
     }
 
     var origToken = tokenInfoPromise;
 
     return tokenInfoPromise.then(token => {
       if (!token) {
-        // No token available. User will need to log in.
+        // User is not logged in.
         return null;
       }
 
+      // Check for token being changed while waiting for the initial initial
+      // token promise to resolve.
       if (origToken !== tokenInfoPromise) {
-        // A token refresh has been initiated via a call to `refreshAccessToken`
-        // below since `tokenGetter()` was called.
         return tokenGetter();
       }
 
+      // Check for expired token.
       if (Date.now() > token.expiresAt) {
-        var shouldPersist = true;
-
         // If we are using automatic login via a grant token, do not persist the
         // initial access token or refreshed tokens.
-        var cfg = serviceConfig(settings);
-        if (cfg && typeof cfg.grantToken !== 'undefined') {
-          shouldPersist = false;
-        }
+        var shouldPersist = autoLoginToken() === null;
 
-        // Token expired. Attempt to refresh.
         tokenInfoPromise = refreshAccessToken(token.refreshToken, {
           persist: shouldPersist,
         }).catch(() => {
@@ -282,9 +296,9 @@ function auth($http, $rootScope, $window,
         });
 
         return tokenGetter();
-      } else {
-        return token.accessToken;
       }
+
+      return token.accessToken;
     });
   }
 
