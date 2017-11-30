@@ -56,6 +56,7 @@ module.exports = class Sidebar extends Host
       @onSignupRequest = serviceConfig.onSignupRequest
       @onProfileRequest = serviceConfig.onProfileRequest
       @onHelpRequest = serviceConfig.onHelpRequest
+      @onUserLinkClicked = serviceConfig.onUserLinkClicked
 
     @onLayoutChange = config.onLayoutChange
 
@@ -91,6 +92,11 @@ module.exports = class Sidebar extends Host
       if @onHelpRequest
         @onHelpRequest()
     )
+    @crossframe.on(events.USER_LINK_CLICKED, (username) =>
+      if @onUserLinkClicked
+        @onUserLinkClicked(username)
+    )
+
     # Return this for chaining
     this
 

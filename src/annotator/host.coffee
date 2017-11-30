@@ -21,6 +21,8 @@ module.exports = class Host extends Guest
         service.onProfileRequestProvided = true
       if service.onHelpRequest
         service.onHelpRequestProvided = true
+      if service.onUserLinkClicked
+        service.onUserLinkClickedProvided = true
 
     # Make a copy of all config settings except `config.sidebarAppUrl`, the app base URL,
     # and `config.pluginClasses`

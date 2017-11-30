@@ -1,11 +1,13 @@
 'use strict';
 
+var { USER_LINK_CLICKED } = require('../../shared/bridge-events');
+
 var annotationMetadata = require('../annotation-metadata');
 var memoize = require('../util/memoize');
 var persona = require('../filter/persona');
 
 // @ngInject
-function AnnotationHeaderController(features, groups, settings, serviceUrl) {
+function AnnotationHeaderController(bridge, features, groups, settings, serviceUrl) {
   var self = this;
 
   this.user = function () {
@@ -31,10 +33,9 @@ function AnnotationHeaderController(features, groups, settings, serviceUrl) {
     return persona.isThirdPartyUser(self.annotation.user, settings.authDomain);
   };
 
-  this.thirdPartyUsernameLink = function () {
-    return settings.usernameUrl ?
-      settings.usernameUrl + persona.username(this.annotation.user):
-      null;
+  this.onUserLinkClicked = function () {
+    var username = persona.username(this.annotation.user);
+    bridge.call(USER_LINK_CLICKED, username);
   };
 
   this.serviceUrl = serviceUrl;

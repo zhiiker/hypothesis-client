@@ -215,6 +215,12 @@ loads.
 
      This setting can only be set using :js:func:`window.hypothesisConfig`.
 
+   .. option:: onUserLinkClicked
+
+     ``function``. A JavaScript function that will be invoked when the user
+     clicks a reference to a username in the sidebar. The username is passed and
+     the return value is unused.
+
 .. option:: branding
 
   Branding lets you adjust certain aspects of the sidebar's look and feel to better fit your site's own look.

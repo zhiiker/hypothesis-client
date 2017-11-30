@@ -3,6 +3,8 @@
 var angular = require('angular');
 var proxyquire = require('proxyquire');
 
+var { USER_LINK_CLICKED } = require('../../../shared/bridge-events');
+
 var fixtures = require('../../test/annotation-fixtures');
 
 var fakeDocumentMeta = {
@@ -13,6 +15,7 @@ var fakeDocumentMeta = {
 
 describe('sidebar.components.annotation-header', function () {
   var $componentController;
+  var fakeBridge;
   var fakeFeatures;
   var fakeGroups;
   var fakePersona;
@@ -46,7 +49,12 @@ describe('sidebar.components.annotation-header', function () {
       flagEnabled: sinon.stub().returns(false),
     };
 
+    fakeBridge = {
+      call: sinon.stub(),
+    };
+
     angular.mock.module('app', {
+      bridge: fakeBridge,
       features: fakeFeatures,
       groups: fakeGroups,
       settings: fakeSettings,
@@ -206,29 +214,15 @@ describe('sidebar.components.annotation-header', function () {
       });
     });
 
-    describe('#thirdPartyUsernameLink', () => {
-      it('returns the custom username link if set', () => {
-        var ann;
-        var ctrl;
-
-        fakeSettings.usernameUrl = 'http://www.example.org/';
-        ann = fixtures.defaultAnnotation();
-        ctrl = $componentController('annotationHeader', {}, {
-          annotation: ann,
+    describe('#onUserLinkClicked', () => {
+      it('dispatches a USER_LINK_CLICKED event to the host page', () => {
+        var ctrl = $componentController('annotationHeader', {}, {
+          annotation: fixtures.defaultAnnotation(),
         });
-        assert.deepEqual(ctrl.thirdPartyUsernameLink(), 'http://www.example.org/TEST_USERNAME');
-      });
 
-      it('returns null if no custom username link is set in the settings object', () => {
-        var ann;
-        var ctrl;
+        ctrl.onUserLinkClicked();
 
-        fakeSettings.usernameUrl = null;
-        ann = fixtures.defaultAnnotation();
-        ctrl = $componentController('annotationHeader', {}, {
-          annotation: ann,
-        });
-        assert.deepEqual(ctrl.thirdPartyUsernameLink(), null);
+        assert.calledWith(fakeBridge.call, USER_LINK_CLICKED, 'TEST_USERNAME');
       });
     });
   });

@@ -45,6 +45,11 @@ module.exports = {
    */
   SIGNUP_REQUESTED: 'signupRequested',
 
+  /**
+   * The user clicked on a username link (eg. on an annotation card).
+   */
+  USER_LINK_CLICKED: 'userLinkClicked',
+
 
   // Events that the annotator sends to the sidebar
   // ----------------------------------------------

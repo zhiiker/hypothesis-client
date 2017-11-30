@@ -169,6 +169,15 @@ describe 'Sidebar', ->
 
         assert.called(onHelpRequest)
 
+    describe 'on USER_LINK_CLICKED event', ->
+      it 'calls the onUserLinkClicked callback function', ->
+        onUserLinkClicked = sandbox.stub()
+        sidebar = createSidebar(config={services: [{onUserLinkClicked: onUserLinkClicked}]})
+
+        emitEvent(events.USER_LINK_CLICKED, 'john')
+
+        assert.calledWith(onUserLinkClicked, 'john')
+
   describe 'pan gestures', ->
     sidebar = null
 
