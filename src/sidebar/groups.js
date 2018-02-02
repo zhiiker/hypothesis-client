@@ -15,16 +15,88 @@ var STORAGE_KEY = 'hypothesis.groups.focus';
 
 var events = require('./events');
 
+/**
+ * Return a value from app state when it meets certain criteria.
+ *
+ * `await` returns a Promise which resolves when a selector function,
+ * which reads values from a Redux store, returns non-null.
+ *
+ * @param {Object} store - Redux store
+ * @param {Function<T|null>} selector - Function which returns a value from the
+ *   store if the criteria is met or `null` otherwise.
+ * @return {Promise<T>}
+ */
+function awaitSelector(store, selector) {
+  // FIXME - Move this to a separate module where it can be tested on its own.
+  var result = selector(store);
+  if (result !== null) {
+    return Promise.resolve(result);
+  }
+  return new Promise(resolve => {
+    var unsubscribe = store.subscribe(() => {
+      var result = selector(store);
+      if (result !== null) {
+        unsubscribe();
+        resolve(result);
+      }
+    });
+  });
+}
+
 // @ngInject
-function groups(localStorage, serviceUrl, session, $rootScope, store) {
+function groups(annotationUI, localStorage, serviceUrl, session, $rootScope, store) {
   // The currently focused group. This is the group that's shown as selected in
   // the groups dropdown, the annotations displayed are filtered to only ones
   // that belong to this group, and any new annotations that the user creates
   // will be created in this group.
   var focusedGroup;
 
+  // List of applicable groups for the current user + document.
+  // TODO - Move this to app state and use selectors + actions to read and write
+  // it.
+  // TODO - This needs to be cleared as soon as the logged-in userid or main
+  // document URL changes.
+  var groups = [];
+
+  function getDocumentUriForGroupSearch() {
+    function mainUri() {
+      // TODO - What about the case when multiple frames are being displayed and
+      // `searchUris` returns the union of the URIs for each of them?
+      var uris = annotationUI.searchUris();
+      if (uris.length === 0) {
+        return null;
+      }
+
+      // We get the first HTTP URL here on the assumption that group scopes must
+      // be domains (+paths)? and therefore we need to look up groups based on
+      // HTTP URLs (so eg. we cannot use a "file:" URL or PDF fingerprint).
+      //
+      // TODO - We need to clarify the rules here.
+      return uris.find(uri => uri.startsWith('http'));
+    }
+    return awaitSelector(annotationUI, mainUri);
+  }
+
+  /**
+   * Fetch the list of applicable groups from the API.
+   *
+   * The list of applicable groups depends on the current userid and the URI of
+   * the attached frames.
+   *
+   * TODO - Re-fetch the group list when the userid or main document URL
+   * changes.
+   */
+  function load() {
+    return getDocumentUriForGroupSearch().then(uri => {
+      return store.groups.search({ document_uri: uri });
+    }).then(gs => {
+      groups = gs;
+      return gs;
+    });
+  }
+
   function all() {
-    return session.state.groups || [];
+    return groups;
   }
 
   // Return the full object for the group with the given id.
@@ -100,6 +172,8 @@ function groups(localStorage, serviceUrl, session, $rootScope, store) {
 
     focused: focused,
     focus: focus,
+
+    load,
   };
 }
 

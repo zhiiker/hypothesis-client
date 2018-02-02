@@ -182,6 +182,12 @@ function store($http, $q, apiRoutes, auth) {
       read: apiCall('profile.read'),
       update: apiCall('profile.update'),
     },
+    groups: {
+      // FIXME - The endpoint is currently called `profile_groups.read`
+      // in the API response but has a URL of `GET /groups` which suggests it
+      // ought to be named something like say `group.list` or `group.search`.
+      search: apiCall('profile_groups.read'),
+    },
 
     // The `links` endpoint is not included here. Clients should fetch these
     // from the `apiRoutes` service.

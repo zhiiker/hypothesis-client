@@ -53,11 +53,11 @@ if(settings.googleAnalytics){
 }
 
 // Fetch external state that the app needs before it can run. This includes the
-// authenticated user state, the API endpoint URLs and WebSocket connection.
+// user's profile and list of applicable groups.
 var resolve = {
   // @ngInject
-  sessionState: function (session) {
-    return session.load();
+  ready: (groups, session) => {
+    return Promise.all([groups.load(), session.load()]);
   },
 };
 
