@@ -85,12 +85,19 @@ function groups(annotationUI, localStorage, serviceUrl, session, $rootScope, sto
    *
    * TODO - Re-fetch the group list when the userid or main document URL
    * changes.
+   *
+   * TODO - Re-fetch groups when a profile change message is received via the
+   * WebSocket?
    */
   function load() {
     return getDocumentUriForGroupSearch().then(uri => {
       return store.groups.search({ document_uri: uri });
     }).then(gs => {
       groups = gs;
+
+      // TODO - Any other steps that need to happen when the set of loaded
+      // groups changes, eg. updating `focusedGroup`.
+
       return gs;
     });
   }
