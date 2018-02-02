@@ -186,6 +186,10 @@ function store($http, $q, apiRoutes, auth) {
       // FIXME - The endpoint is currently called `profile_groups.read`
       // in the API response but has a URL of `GET /groups` which suggests it
       // ought to be named something like say `group.list` or `group.search`.
+      //
+      // FIXME - The `profile_groups.read` endpoint is currently not returning
+      // the "Public" group so we have an empty groups list for logged-out
+      // users. Need to resolve this on the backend side.
       search: apiCall('profile_groups.read'),
     },
 
