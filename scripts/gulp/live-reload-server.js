@@ -99,6 +99,8 @@ function LiveReloadServer(port, config) {
 
                 // Open the sidebar when the page loads
                 openSidebar: true,
+
+                collapseLongAnnotations: false,
               };
             };
 
