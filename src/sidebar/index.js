@@ -10,19 +10,14 @@ require('../shared/polyfills');
 var raven;
 
 // Read settings rendered into sidebar app HTML by service/extension.
-var settings = require('../shared/settings').jsonConfigsFrom(document);
+var clientSettings = require('../shared/settings').jsonConfigsFrom(document);
 
-if (settings.raven) {
+if (clientSettings.raven) {
   // Initialize Raven. This is required at the top of this file
   // so that it happens early in the app's startup flow
   raven = require('./raven');
-  raven.init(settings.raven);
+  raven.init(clientSettings.raven);
 }
-
-var hostPageConfig = require('./host-config');
-Object.assign(settings, hostPageConfig(window));
-
-settings.apiUrl = getApiUrl(settings);
 
 // Disable Angular features that are not compatible with CSP.
 //
@@ -42,14 +37,14 @@ var angular = require('angular');
 require('autofill-event');
 
 // Setup Angular integration for Raven
-if (settings.raven) {
+if (clientSettings.raven) {
   raven.angularModule(angular);
 } else {
   angular.module('ngRaven', []);
 }
 
-if(settings.googleAnalytics){
-  addAnalytics(settings.googleAnalytics);
+if(clientSettings.googleAnalytics){
+  addAnalytics(clientSettings.googleAnalytics);
 }
 
 // Fetch external state that the app needs before it can run. This includes the
@@ -118,29 +113,35 @@ function setupHttp($http, streamer) {
   $http.defaults.headers.common['X-Client-Id'] = streamer.clientId;
 }
 
-function processAppOpts() {
-  if (settings.liveReloadServer) {
-    require('./live-reload-client').connect(settings.liveReloadServer);
-  }
+function fetchSettings() {
+  // Merge settings rendered into sidebar app HTML page with the whitelisted
+  // settings provided by the embedder of Hypothesis.
+  var hostPageConfig = require('./host-config');
+  var settings = Object.assign({}, clientSettings, hostPageConfig(window));
+
+  settings.apiUrl = getApiUrl(settings);
+
+  return Promise.resolve(settings);
 }
 
-module.exports = angular.module('h', [
-  // Angular addons which export the Angular module name
-  // via module.exports
-  require('angular-route'),
-  require('angular-sanitize'),
-  require('angular-toastr'),
+function startAngularApp(settings) {
+  angular.module('h', [
+    // Angular addons which export the Angular module name
+    // via module.exports
+    require('angular-route'),
+    require('angular-sanitize'),
+    require('angular-toastr'),
 
-  // Angular addons which do not export the Angular module
-  // name via module.exports
-  ['angulartics', require('angulartics')][0],
-  ['angulartics.google.analytics', require('angulartics/src/angulartics-ga')][0],
-  ['ngTagsInput', require('ng-tags-input')][0],
-  ['ui.bootstrap', require('./vendor/ui-bootstrap-custom-tpls-0.13.4')][0],
+    // Angular addons which do not export the Angular module
+    // name via module.exports
+    ['angulartics', require('angulartics')][0],
+    ['angulartics.google.analytics', require('angulartics/src/angulartics-ga')][0],
+    ['ngTagsInput', require('ng-tags-input')][0],
+    ['ui.bootstrap', require('./vendor/ui-bootstrap-custom-tpls-0.13.4')][0],
 
-  // Local addons
-  'ngRaven',
-])
+    // Local addons
+    'ngRaven',
+  ])
 
   // The root component for the application
   .component('hypothesisApp', require('./components/hypothesis-app'))
@@ -232,18 +233,27 @@ module.exports = angular.module('h', [
   .run(setupHttp)
   .run(crossOriginRPC.server.start);
 
-processAppOpts();
+  if (settings.liveReloadServer) {
+    require('./live-reload-client').connect(settings.liveReloadServer);
+  }
 
-// Work around a check in Angular's $sniffer service that causes it to
-// incorrectly determine that Firefox extensions are Chrome Packaged Apps which
-// do not support the HTML 5 History API. This results Angular redirecting the
-// browser on startup and thus the app fails to load.
-// See https://github.com/angular/angular.js/blob/a03b75c6a812fcc2f616fc05c0f1710e03fca8e9/src/ng/sniffer.js#L30
-if (window.chrome && !window.chrome.app) {
-  window.chrome.app = {
-    dummyAddedByHypothesisClient: true,
-  };
+  // Work around a check in Angular's $sniffer service that causes it to
+  // incorrectly determine that Firefox extensions are Chrome Packaged Apps which
+  // do not support the HTML 5 History API. This results Angular redirecting the
+  // browser on startup and thus the app fails to load.
+  // See https://github.com/angular/angular.js/blob/a03b75c6a812fcc2f616fc05c0f1710e03fca8e9/src/ng/sniffer.js#L30
+  if (window.chrome && !window.chrome.app) {
+    window.chrome.app = {
+      dummyAddedByHypothesisClient: true,
+    };
+  }
+
+  var appEl = document.querySelector('hypothesis-app');
+  angular.bootstrap(appEl, ['h'], {strictDi: true});
 }
 
-var appEl = document.querySelector('hypothesis-app');
-angular.bootstrap(appEl, ['h'], {strictDi: true});
+fetchSettings().then(settings => {
+  startAngularApp(settings);
+}).catch(err => {
+  console.error(err);
+});
