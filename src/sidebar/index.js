@@ -2,7 +2,7 @@
 
 var addAnalytics = require('./ga');
 var disableOpenerForExternalLinks = require('./util/disable-opener-for-external-links');
-var getApiUrl = require('./get-api-url');
+var { fetchConfig } = require('./util/fetch-config');
 var serviceConfig = require('./service-config');
 var crossOriginRPC = require('./cross-origin-rpc.js');
 require('../shared/polyfills');
@@ -111,17 +111,6 @@ function configureCompile($compileProvider) {
 // @ngInject
 function setupHttp($http, streamer) {
   $http.defaults.headers.common['X-Client-Id'] = streamer.clientId;
-}
-
-function fetchSettings() {
-  // Merge settings rendered into sidebar app HTML page with the whitelisted
-  // settings provided by the embedder of Hypothesis.
-  var hostPageConfig = require('./host-config');
-  var settings = Object.assign({}, clientSettings, hostPageConfig(window));
-
-  settings.apiUrl = getApiUrl(settings);
-
-  return Promise.resolve(settings);
 }
 
 function startAngularApp(settings) {
@@ -252,7 +241,7 @@ function startAngularApp(settings) {
   angular.bootstrap(appEl, ['h'], {strictDi: true});
 }
 
-fetchSettings().then(settings => {
+fetchConfig(clientSettings).then(settings => {
   startAngularApp(settings);
 }).catch(err => {
   console.error(err);
