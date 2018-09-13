@@ -4,7 +4,6 @@ var addAnalytics = require('./ga');
 var disableOpenerForExternalLinks = require('./util/disable-opener-for-external-links');
 var { fetchConfig } = require('./util/fetch-config');
 var serviceConfig = require('./service-config');
-var crossOriginRPC = require('./cross-origin-rpc.js');
 require('../shared/polyfills');
 
 var raven;
@@ -113,6 +112,11 @@ function setupHttp($http, streamer) {
   $http.defaults.headers.common['X-Client-Id'] = streamer.clientId;
 }
 
+// @ngInject
+function startRpcServer(rpcServer) {
+  rpcServer.start();
+}
+
 function startAngularApp(settings) {
   angular.module('h', [
     // Angular addons which export the Angular module name
@@ -188,6 +192,7 @@ function startAngularApp(settings) {
   .service('localStorage', require('./services/local-storage'))
   .service('permissions', require('./services/permissions'))
   .service('queryParser', require('./services/query-parser'))
+  .service('rpcServer', require('./services/rpc-server'))
   .service('rootThread', require('./services/root-thread'))
   .service('searchFilter', require('./services/search-filter'))
   .service('serviceUrl', require('./services/service-url'))
@@ -207,6 +212,7 @@ function startAngularApp(settings) {
   .value('OAuthClient', require('./util/oauth-client'))
   .value('VirtualThreadList', require('./virtual-thread-list'))
   .value('isSidebar', isSidebar)
+  .value('postMessageRpc', require('./util/postmessage-json-rpc'))
   .value('random', require('./util/random'))
   .value('raven', require('./raven'))
   .value('serviceConfig', serviceConfig)
@@ -220,7 +226,7 @@ function startAngularApp(settings) {
   .config(configureToastr)
 
   .run(setupHttp)
-  .run(crossOriginRPC.server.start);
+  .run(startRpcServer);
 
   if (settings.liveReloadServer) {
     require('./live-reload-client').connect(settings.liveReloadServer);
