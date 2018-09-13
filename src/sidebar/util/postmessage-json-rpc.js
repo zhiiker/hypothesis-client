@@ -10,12 +10,17 @@
 
 const { generateHexString } = require('./random');
 
+/**
+ * Generate a random ID to identify an RPC message and response.
+ */
 function generateId() {
   return generateHexString(10);
 }
 
 /**
  * Make a JSON-RPC call to a server in another frame using `postMessage`.
+ *
+ * Rejects if no response is received within `timeout` ms.
  *
  * @param {Window} frame - Frame to send call to
  * @param {string} origin - Origin filter for `window.postMessage` call
@@ -27,7 +32,7 @@ function generateId() {
  * @return {Promise<any>} - A Promise for the response to the call
  */
 function call(frame, origin, method, params=[], timeout=2000,
-                   window_=window, id=generateId()) {
+              window_=window, id=generateId()) {
   const message = {
     jsonrpc: '2.0',
     method,
@@ -85,6 +90,18 @@ const errorCodes = {
 };
 
 /**
+ * Generate a JSON-RPC error response.
+ *
+ * See https://www.jsonrpc.org/specification#error_object
+ *
+ * @param {number} code
+ * @param {string} message
+ */
+function errorResponse(code, message) {
+  return { error: { code, message } };
+}
+
+/**
  * RPC server for cross-frame communication.
  */
 class Server {
@@ -99,6 +116,8 @@ class Server {
   constructor(methods, allowedOrigins, window_=window) {
     this.window_ = window_;
     this.handleMessage = event => {
+      // Check that this is a valid request.
+      // See https://www.jsonrpc.org/specification#request_object
       if (!allowedOrigins.includes(event.origin) ||
           !(event.data instanceof Object) ||
           event.data.jsonrpc !== '2.0' ||
@@ -106,6 +125,8 @@ class Server {
         return;
       }
 
+      // Send the response to the calling frame.
+      // See https://www.jsonrpc.org/specification#response_object
       const respond = (response) => {
         if (!event.data.id) {
           // No ID? No response.
@@ -119,10 +140,7 @@ class Server {
       const handler = methods[event.data.method];
 
       if (!handler) {
-        respond({ error: {
-          code: errorCodes.METHOD_NOT_FOUND,
-          message: 'Method not found',
-        } });
+        respond(errorResponse(errorCodes.METHOD_NOT_FOUND, 'Method not found'));
         return;
       }
 
@@ -130,10 +148,7 @@ class Server {
         const result = handler(event.data.params);
         respond({ result });
       } catch (err) {
-        respond({ error: {
-          code: errorCodes.SERVER_ERROR,
-          message: err.message,
-        } });
+        respond(errorResponse(errorCodes.SERVER_ERROR, err.message));
       }
     };
   }
