@@ -1,0 +1,15 @@
+<html>
+  <body>
+    <p>
+    I'm a client in an iframe which uses the sidebar in the parent frame.
+    </p>
+    <script>
+      window.hypothesisConfig = () => {
+        return {
+          subFrameIdentifier: '1234',
+        };
+      };
+    </script>
+    <script type="module" src="annotator.js"></script>
+  </body>
+</html>

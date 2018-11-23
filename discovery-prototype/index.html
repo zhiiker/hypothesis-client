@@ -1,0 +1,30 @@
+<html>
+  <body>
+    <p>
+    This is a prototype to test code that enables an annotation "client"
+    in an HTML/PDF etc. document to connect to the appropriate sidebar which
+    retrieves annotations for the document and notifies the client about them.
+    </p>
+    <p>
+    The connection process aims to meet the following goals:
+    </p>
+    <ul>
+      <li>It should be possible for multiple documents to be displayed in
+          a tab which have their own independent sidebars.</li>
+      <li>It should be possible for multiple frames to be displayed in a tab
+          which communicate with the same sidebar.</li>
+      <li>If a client is configured without a <code>subFrameIdentifier</code>
+          it should create and connect to its own sidebar.</li>
+      <li>If a client is configured with a <code>subFrameIdentifier</code>
+          it should connect to a sidebar created by a client in a parent frame.
+      </li>
+    </ul>
+    <hr>
+    <p>
+    I'm a client in the top-level frame.
+    </p>
+    <iframe width=300 height=300 src="child.html"></iframe>
+    <iframe width=300 height=300 src="child-with-own-sidebar.html"></iframe>
+    <script type="module" src="annotator.js"></script>
+  </body>
+</html>
