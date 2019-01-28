@@ -19,6 +19,7 @@ function updateModel(annotation, changes, permissions) {
     // Apply changes from the draft
     tags: changes.tags,
     text: changes.text,
+    group: changes.group,
     permissions: changes.isPrivate ?
       permissions.private(userid) : permissions.shared(userid, annotation.group),
   });
@@ -146,7 +147,7 @@ function AnnotationController(
     // AnnotationController instances are re-created on login) so serves to
     // automatically save highlights that were created while logged out when you
     // log in.
-    saveNewHighlight();
+    saveNewHighlight(); // This is a bit of a nuisance since it makes a potential intended annotation a highlight.
 
     // If this annotation is not a highlight and if it's new (has just been
     // created by the annotate button) or it has edits not yet saved to the
@@ -459,6 +460,7 @@ function AnnotationController(
     drafts.update(self.annotation, {
       tags: self.state().tags,
       text: self.state().text,
+      group: self.state().group,
       isPrivate: privacy === 'private',
     });
   };
@@ -535,6 +537,7 @@ function AnnotationController(
       isPrivate: self.state().isPrivate,
       tags: self.state().tags,
       text: text,
+      group: self.state().group,
     });
   };
 
@@ -543,6 +546,24 @@ function AnnotationController(
       isPrivate: self.state().isPrivate,
       tags: tags,
       text: self.state().text,
+      group: self.state().group,
+    });
+  };
+
+  /**
+    * @ngdoc method
+    * @name annotation.AnnotationController#setGroup
+    *
+    * Set the group an annotation belongs in to an existing group.
+    *
+    * The changes take effect when the annotation is saved.
+    */
+  this.setGroup = function(group) {
+    drafts.update(self.annotation, {
+      tags: self.state().tags,
+      text: self.state().text,
+      isPrivate: self.state().isPrivate,
+      group: group,
     });
   };
 
@@ -554,6 +575,7 @@ function AnnotationController(
     return {
       tags: self.annotation.tags,
       text: self.annotation.text,
+      group: self.annotation.group,
       isPrivate: !permissions.isShared(self.annotation.permissions,
         self.annotation.user),
     };
