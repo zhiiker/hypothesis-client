@@ -103,9 +103,9 @@ function settingsFrom(window_) {
   }
 
   /**
-   * Return the `#group:*` ID from the given URL's fragment.
+   * Return the `#annotations:group:*` ID from the given URL's fragment.
    *
-   * If the URL contains a `#group:<GROUP_ID>` fragment then return
+   * If the URL contains a `#annotations:group:<GROUP_ID>` fragment then return
    * the group ID extracted from the fragment. Otherwise return `null`.
    *
    * @return {string|null} - The extracted ID, or null.
@@ -116,7 +116,7 @@ function settingsFrom(window_) {
       // Annotation IDs are url-safe-base64 identifiers
       // See https://tools.ietf.org/html/rfc4648#page-7
       const groupFragmentMatch = window_.location.href.match(
-        /#group:([A-Za-z0-9_-]+)$/
+        /#annotations:group:([A-Za-z0-9_-]+)$/
       );
       if (groupFragmentMatch) {
         return groupFragmentMatch[1];
@@ -124,7 +124,7 @@ function settingsFrom(window_) {
       return null;
     }
 
-    return jsonConfigs.groups || groupFromURL();
+    return jsonConfigs.group || groupFromURL();
   }
 
   function showHighlights() {
@@ -203,6 +203,9 @@ function settingsFrom(window_) {
     },
     get clientUrl() {
       return clientUrl();
+    },
+    get group() {
+      return group();
     },
     get showHighlights() {
       return showHighlights();

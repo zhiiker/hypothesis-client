@@ -60,7 +60,7 @@ function groups(
    * @param {string|null} directLinkedAnnotationId
    * @return {Promise<Group[]>}
    */
-  function filterGroups(groups, isLoggedIn, directLinkedAnnotationId) {
+  function filterGroups(groups, isLoggedIn, directLinkedAnnotationId, directLinkedGroupId) {
     // If service groups are specified only return those.
     // If a service group doesn't exist in the list of groups don't return it.
     if (svc && svc.groups) {
@@ -86,7 +86,7 @@ function groups(
     // link to an annotation in that group.
     const nonWorldGroups = groups.filter(g => g.id !== '__world__');
 
-    if (!directLinkedAnnotationId) {
+    if (!directLinkedAnnotationId, directLinkedGroupId) {
       return Promise.resolve(nonWorldGroups);
     }
 
@@ -179,7 +179,8 @@ function groups(
       .then(([groups, token]) => {
         const isLoggedIn = token !== null;
         const directLinkedAnnotation = settings.annotations;
-        return filterGroups(groups, isLoggedIn, directLinkedAnnotation);
+        const directLinkedAnnotation = settings.group;
+        return filterGroups(groups, isLoggedIn, directLinkedAnnotation, directLinkedGroup);
       })
       .then(groups => {
         injectOrganizations(groups);
