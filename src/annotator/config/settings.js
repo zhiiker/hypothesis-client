@@ -102,6 +102,31 @@ function settingsFrom(window_) {
     return jsonConfigs.annotations || annotationsFromURL();
   }
 
+  /**
+   * Return the `#group:*` ID from the given URL's fragment.
+   *
+   * If the URL contains a `#group:<GROUP_ID>` fragment then return
+   * the group ID extracted from the fragment. Otherwise return `null`.
+   *
+   * @return {string|null} - The extracted ID, or null.
+   */
+  function group() {
+    /** Return the annotations from the URL, or null. */
+    function groupFromURL() {
+      // Annotation IDs are url-safe-base64 identifiers
+      // See https://tools.ietf.org/html/rfc4648#page-7
+      const groupFragmentMatch = window_.location.href.match(
+        /#group:([A-Za-z0-9_-]+)$/
+      );
+      if (groupFragmentMatch) {
+        return groupFragmentMatch[1];
+      }
+      return null;
+    }
+
+    return jsonConfigs.groups || groupFromURL();
+  }
+
   function showHighlights() {
     let showHighlights_ = hostPageSetting('showHighlights');
 
