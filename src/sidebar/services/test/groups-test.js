@@ -112,6 +112,7 @@ describe('groups', function() {
         member: {
           delete: sandbox.stub().returns(Promise.resolve()),
         },
+        read: sandbox.stub().returns(Promise.resolve()),
       },
       groups: {
         list: sandbox.stub().returns(
@@ -128,7 +129,7 @@ describe('groups', function() {
       },
     };
     fakeServiceUrl = sandbox.stub();
-    fakeSettings = {};
+    fakeSettings = { group: null };
   });
 
   afterEach(function() {
@@ -176,6 +177,26 @@ describe('groups', function() {
       });
     });
 
+    it('combines groups from all 3 endpoints if community-groups feature flag is set and there is a selectedGroup', function() {
+      const svc = service();
+
+      fakeSettings.group = 'selected-id';
+      const groups = [
+        { id: 'groupa', name: 'GroupA' },
+        { id: 'groupb', name: 'GroupB' },
+        { id: fakeSettings.group, name: 'Selected Group' },
+      ];
+
+      fakeApi.profile.groups.read.returns(Promise.resolve(groups));
+      fakeApi.groups.list.returns(Promise.resolve([groups[0]]));
+      fakeApi.group.read.returns(Promise.resolve(groups[2]));
+      fakeFeatures.flagEnabled.withArgs('community_groups').returns(true);
+
+      return svc.load().then(() => {
+        assert.calledWith(fakeStore.loadGroups, groups);
+      });
+    });
+
     it('loads all available groups', function() {
       const svc = service();
 
@@ -199,6 +220,7 @@ describe('groups', function() {
         Promise.resolve([{ id: 'groupa', name: 'GroupA' }])
       );
       fakeFeatures.flagEnabled.withArgs('community_groups').returns(true);
+      fakeSettings.group = 'group-id';
 
       return svc.load().then(() => {
         assert.calledWith(
@@ -209,6 +231,10 @@ describe('groups', function() {
           fakeApi.groups.list,
           sinon.match({ expand: ['organization', 'scopes'] })
         );
+        assert.calledWith(
+          fakeApi.group.read,
+          sinon.match({ expand: ['organization', 'scopes'] })
+        );
       });
     });
 
@@ -217,6 +243,16 @@ describe('groups', function() {
       fakeLocalStorage.getItem.returns(dummyGroups[1].id);
       return svc.load().then(() => {
         assert.calledWith(fakeStore.focusGroup, dummyGroups[1].id);
+      });
+    });
+
+    it('sets the focused group to the selected group', () => {
+      const svc = service();
+      fakeFeatures.flagEnabled.withArgs('community_groups').returns(true);
+      fakeSettings.group = dummyGroups[1].id;
+      fakeApi.groups.list.returns(Promise.resolve(dummyGroups));
+      return svc.load().then(() => {
+        assert.calledWith(fakeStore.focusGroup, fakeSettings.group);
       });
     });
 
