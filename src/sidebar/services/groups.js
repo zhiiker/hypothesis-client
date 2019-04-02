@@ -49,6 +49,13 @@ function groups(
     return awaitStateChange(store, mainUri);
   }
 
+  function isAllowedDirectLinkedGroup(directLinkedGroup) {
+    // If the requested group is defined and the group is scoped to the uri 
+    // or the scope is not enforced, the group is accessible on this page.
+    return (directLinkedGroup !== undefined && 
+      (directLinkedGroup.isScopedToUri || !directLinkedGroup.scopes.enforced));
+  }
+
   /**
    * Filter the returned list of groups from the API.
    *
@@ -185,7 +192,7 @@ function groups(
             ([myGroups, featuredGroups, token, selectedGroup]) => [
               combineGroups(
                 myGroups,
-                selectedGroup !== undefined
+                isAllowedDirectLinkedGroup(selectedGroup)
                   ? featuredGroups.concat([selectedGroup])
                   : featuredGroups,
                 documentUri
