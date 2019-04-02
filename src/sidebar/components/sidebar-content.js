@@ -305,6 +305,11 @@ function SidebarContentController(
     return Object.keys(selection).length;
   };
 
+  this.selectedGroupUnavailable = function() {
+    const selectedGroup = settings.group;
+    return !isLoading() && !!selectedGroup && selectedGroup !== store.focusedGroup().id;
+  };
+ 
   this.selectedAnnotationUnavailable = function() {
     const selectedID = firstKey(store.getState().selectedAnnotationMap);
     return !isLoading() && !!selectedID && !store.annotationExists(selectedID);
