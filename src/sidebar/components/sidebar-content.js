@@ -299,6 +299,9 @@ function SidebarContentController(
 
   this.selectedAnnotationCount = function() {
     const selection = store.getState().selectedAnnotationMap;
+    if (this.selectedGroupUnavailable()){
+      return 1;
+    }
     if (!selection) {
       return 0;
     }

@@ -60,6 +60,7 @@
   on-force-visible="vm.forceVisible(thread)"
   on-select="vm.scrollTo(annotation)"
   show-document-info="false"
+  ng-if="!vm.selectedGroupUnavailable()"
   thread="vm.rootThread">
 </thread-list>
 
