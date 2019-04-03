@@ -185,6 +185,10 @@ function groups(
             const selectedGroupApi = api.group.read({
               id: directLinkedGroup,
               expand: params.expand,
+            }).catch(error => { 
+              // If this api call results in a 404 error it means the user doesn't have
+              // permission to the group or the group doesn't exist. 
+              return undefined; 
             });
             groupApiRequests = groupApiRequests.concat(selectedGroupApi);
           }
