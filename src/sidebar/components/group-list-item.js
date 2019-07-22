@@ -10,24 +10,109 @@ const { copyText } = require('../util/copy-to-clipboard');
 
 const MenuItem = require('./menu-item');
 
+const canLeaveGroup = group => group.type === 'private';
+const isGroupSelectable = group => !group.scopes.enforced || group.isScopedToUri;
+
+/**
+ * Submenu for a group list item with actions to go to the group's activity
+ * page, copy a link to the group and leave the group.
+ */
+function GroupSubmenu({
+  group,
+  analytics,
+  flash,
+  onItemClicked,
+  groups: groupsService,
+}) {
+  const activityUrl = group.links.html;
+
+  const leaveGroup = () => {
+    const message = `Are you sure you want to leave the group "${group.name}"?`;
+    if (window.confirm(message)) {
+      analytics.track(analytics.events.GROUP_LEAVE);
+      groupsService.leave(group.id);
+    }
+  };
+
+  const copyLink = () => {
+    try {
+      copyText(activityUrl);
+      flash.info(`Copied link for "${group.name}"`);
+    } catch (err) {
+      flash.error('Unable to copy link');
+    }
+  };
+
+  const copyLinkLabel =
+    group.type === 'private' ? 'Copy invite link' : 'Copy activity link';
+
+  return (
+    <Fragment>
+      <ul onClick={onItemClicked}>
+        {activityUrl && (
+          <li>
+            <MenuItem
+              href={activityUrl}
+              icon="external"
+              isSubmenuItem={true}
+              label="View group activity"
+            />
+          </li>
+        )}
+        {activityUrl && (
+          <li>
+            <MenuItem
+              onClick={copyLink}
+              icon="copy"
+              isSubmenuItem={true}
+              label={copyLinkLabel}
+            />
+          </li>
+        )}
+        {canLeaveGroup(group) && (
+          <li>
+            <MenuItem
+              icon="leave"
+              isSubmenuItem={true}
+              label="Leave group"
+              onClick={leaveGroup}
+            />
+          </li>
+        )}
+      </ul>
+      {!isGroupSelectable(group) && (
+        <p className="group-list-item__footer">
+          This group is restricted to specific URLs.
+        </p>
+      )}
+    </Fragment>
+  );
+}
+
+GroupSubmenu.propTypes = {
+  group: propTypes.object.isRequired,
+  onItemClicked: propTypes.func,
+
+  // Injected services.
+  analytics: propTypes.object.isRequired,
+  flash: propTypes.object.isRequired,
+  groups: propTypes.object.isRequired,
+};
+
+GroupSubmenu.injectedProps = ['analytics', 'flash', 'groups'];
+
+// eslint-disable-next-line no-func-assign
+GroupSubmenu = withServices(GroupSubmenu);
+
 /**
  * An item in the groups selection menu.
  *
  * The item has a primary action which selects the group, along with a set of
  * secondary actions accessible via a toggle menu.
  */
-function GroupListItem({
-  analytics,
-  isExpanded,
-  flash,
-  group,
-  groups: groupsService,
-  onExpand,
-}) {
-  const canLeaveGroup = group.type === 'private';
+function GroupListItem({ analytics, isExpanded, group, onExpand }) {
   const activityUrl = group.links.html;
-  const hasActionMenu = activityUrl || canLeaveGroup;
-  const isSelectable = !group.scopes.enforced || group.isScopedToUri;
+  const hasActionMenu = activityUrl || canLeaveGroup(group);
 
   const focusedGroupId = useStore(store => store.focusedGroupId());
   const isSelected = group.id === focusedGroupId;
@@ -45,14 +130,6 @@ function GroupListItem({
     actions.focusGroup(group.id);
   };
 
-  const leaveGroup = () => {
-    const message = `Are you sure you want to leave the group "${group.name}"?`;
-    if (window.confirm(message)) {
-      analytics.track(analytics.events.GROUP_LEAVE);
-      groupsService.leave(group.id);
-    }
-  };
-
   const toggleSubmenu = event => {
     event.stopPropagation();
 
@@ -63,20 +140,10 @@ function GroupListItem({
     onExpand(!isExpanded);
   };
 
-  const copyLink = () => {
-    try {
-      copyText(activityUrl);
-      flash.info(`Copied link for "${group.name}"`);
-    } catch (err) {
-      flash.error('Unable to copy link');
-    }
-  };
-
-  const copyLinkLabel =
-    group.type === 'private' ? 'Copy invite link' : 'Copy activity link';
-
   // Close the submenu when any clicks happen which close the top-level menu.
   const collapseSubmenu = () => onExpand(false);
+
+  const isSelectable = isGroupSelectable(group);
 
   return (
     <MenuItem
@@ -90,45 +157,7 @@ function GroupListItem({
       onClick={isSelectable ? focusGroup : toggleSubmenu}
       onToggleSubmenu={toggleSubmenu}
       renderSubmenu={() => (
-        <Fragment>
-          <ul onClick={collapseSubmenu}>
-            {activityUrl && (
-              <li>
-                <MenuItem
-                  href={activityUrl}
-                  icon="external"
-                  isSubmenuItem={true}
-                  label="View group activity"
-                />
-              </li>
-            )}
-            {activityUrl && (
-              <li>
-                <MenuItem
-                  onClick={copyLink}
-                  icon="copy"
-                  isSubmenuItem={true}
-                  label={copyLinkLabel}
-                />
-              </li>
-            )}
-            {canLeaveGroup && (
-              <li>
-                <MenuItem
-                  icon="leave"
-                  isSubmenuItem={true}
-                  label="Leave group"
-                  onClick={leaveGroup}
-                />
-              </li>
-            )}
-          </ul>
-          {!isSelectable && (
-            <p className="group-list-item__footer">
-              This group is restricted to specific URLs.
-            </p>
-          )}
-        </Fragment>
+        <GroupSubmenu onItemClicked={collapseSubmenu} group={group} />
       )}
     />
   );
@@ -151,10 +180,8 @@ GroupListItem.propTypes = {
 
   // Injected services.
   analytics: propTypes.object.isRequired,
-  flash: propTypes.object.isRequired,
-  groups: propTypes.object.isRequired,
 };
 
-GroupListItem.injectedProps = ['analytics', 'flash', 'groups'];
+GroupListItem.injectedProps = ['analytics'];
 
 module.exports = withServices(GroupListItem);
