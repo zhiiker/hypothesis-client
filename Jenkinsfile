@@ -67,7 +67,9 @@ node {
 
     stage('Test') {
         nodeEnv.inside("-e HOME=${workspace}") {
-          sh "make checkformatting lint test"
+          // DEBUGGING
+          sh "make test"
+          // sh "make checkformatting lint test"
         }
     }
 }
