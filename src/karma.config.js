@@ -13,6 +13,33 @@ process.env.CHROME_BIN = require('puppeteer').executablePath();
 // `true` if this build is running in a continuous integration environment.
 let isCIBuild = false;
 
+/**
+ * A Browserify transform that logs every file that is executed.
+ * See https://github.com/browserify/browserify-handbook#writing-your-own
+ */
+function logExecutedModule(file) {
+  const through = require('through2');
+
+  return through(function(buf, enc, next) {
+    if (!file.match(/.*\.(coffee|js)$/)) {
+      this.push(buf);
+      next();
+      return;
+    }
+
+    let content = buf.toString('utf8');
+    content = `
+"use strict";
+
+console.log("Executing ${file}");
+
+${content}
+`;
+    this.push(content);
+    next();
+  });
+}
+
 // On Travis and in Docker, the tests run as root, so the sandbox must be
 // disabled.
 if (process.env.TRAVIS || process.env.RUNNING_IN_DOCKER) {
@@ -122,8 +149,12 @@ module.exports = function(config) {
             ],
           },
         ],
+
         // Enable debugging checks in libraries that use `NODE_ENV` guards.
         [envify({ NODE_ENV: 'development' }), { global: true }],
+
+        // Log executed JS/CoffeeScript modules to help debug CI failures.
+        logExecutedModule,
       ],
     },
 
