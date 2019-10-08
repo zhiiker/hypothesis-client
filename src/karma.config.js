@@ -81,6 +81,9 @@ module.exports = function(config) {
 
     // list of files / patterns to load in the browser
     files: [
+      // Temporary file for CI debugging.
+      './begin-tests.js',
+
       // Test setup
       './sidebar/test/bootstrap.js',
 
@@ -112,6 +115,9 @@ module.exports = function(config) {
         included: true,
         served: true,
       },
+
+      // Temporary file for CI debugging.
+      './end-tests.js',
     ],
 
     // list of files to exclude
