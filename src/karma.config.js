@@ -64,37 +64,22 @@ module.exports = function(config) {
 
     // list of files / patterns to load in the browser
     files: [
-      // Test setup
-      './sidebar/test/bootstrap.js',
-
       // Empty HTML file to assist with some tests
       { pattern: './annotator/test/empty.html', watched: false },
 
-      // Karma watching is disabled for these files because they are
-      // bundled with karma-browserify which handles watching itself via
-      // watchify
+      // Test setup
+      './sidebar/test/bootstrap.js',
 
-      // Unit tests
-      {
-        pattern: 'annotator/**/*-test.coffee',
-        watched: false,
-        included: true,
-        served: true,
-      },
-      {
-        pattern: '**/test/*-test.js',
-        watched: false,
-        included: true,
-        served: true,
-      },
-
-      // Integration tests
-      {
-        pattern: '**/integration/*-test.js',
-        watched: false,
-        included: true,
-        served: true,
-      },
+      // Load all the test modules.
+      //
+      // We do this using a module which requires all the test modules rather
+      // than using patterns in the `files` list as this results in a more
+      // efficient HTML page which has only a few `<script>` tags instead of
+      // one for every test module.
+      //
+      // karma-browserify will watch the required files using watchify and
+      // re-run tests as necessary.
+      './require-tests.js',
     ],
 
     // list of files to exclude
@@ -103,11 +88,8 @@ module.exports = function(config) {
     // preprocess matching files before serving them to the browser
     // available preprocessors: https://npmjs.org/browse/keyword/karma-preprocessor
     preprocessors: {
-      './shared/polyfills/*.js': ['browserify'],
       './sidebar/test/bootstrap.js': ['browserify'],
-      '**/*-test.js': ['browserify'],
-      '**/*-test.coffee': ['browserify'],
-      '**/*-it.js': ['browserify'],
+      './require-tests.js': ['browserify'],
     },
 
     browserify: {
@@ -134,6 +116,9 @@ module.exports = function(config) {
         ],
         // Enable debugging checks in libraries that use `NODE_ENV` guards.
         [envify({ NODE_ENV: 'development' }), { global: true }],
+
+        // Used by `require-tests.js`.
+        'require-globify',
       ],
     },
 
