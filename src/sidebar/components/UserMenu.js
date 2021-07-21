@@ -2,7 +2,7 @@ import { SvgIcon } from '@hypothesis/frontend-shared';
 import { useState } from 'preact/hooks';
 
 import bridgeEvents from '../../shared/bridge-events';
-import serviceConfig from '../config/service-config';
+import { serviceConfig } from '../config/service-config';
 import { isThirdPartyUser } from '../helpers/account-id';
 import { useStoreProxy } from '../store/use-store';
 import { withServices } from '../service-context';
@@ -16,15 +16,17 @@ import MenuSection from './MenuSection';
  * /
 
 /**
- * @typedef AuthState
+ * @typedef AuthStateLoggedIn
+ * @prop {'logged-in'} status
  * @prop {string} displayName
  * @prop {string} userid
  * @prop {string} username
+ * @typedef {{status: 'logged-out'|'unknown'} | AuthStateLoggedIn}  AuthState
  */
 
 /**
  * @typedef UserMenuProps
- * @prop {AuthState} auth - object representing authenticated user and auth status
+ * @prop {AuthStateLoggedIn} auth - object representing authenticated user and auth status
  * @prop {() => any} onLogout - onClick callback for the "log out" button
  * @prop {Object} bridge
  * @prop {MergedConfig} settings
@@ -127,6 +129,4 @@ function UserMenu({ auth, bridge, onLogout, settings }) {
   );
 }
 
-UserMenu.injectedProps = ['bridge', 'settings'];
-
-export default withServices(UserMenu);
+export default withServices(UserMenu, ['bridge', 'settings']);

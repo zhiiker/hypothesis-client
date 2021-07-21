@@ -1,4 +1,4 @@
-import createStore from '../../create-store';
+import { createStore } from '../../create-store';
 import sidebarPanels from '../sidebar-panels';
 
 describe('sidebar/store/modules/sidebar-panels', () => {
@@ -12,7 +12,7 @@ describe('sidebar/store/modules/sidebar-panels', () => {
     store = createStore([sidebarPanels]);
   });
 
-  describe('#init', () => {
+  describe('#initialState', () => {
     it('sets initial `activePanelName` to `null`', () => {
       assert.equal(getSidebarPanelsState().activePanelName, null);
     });

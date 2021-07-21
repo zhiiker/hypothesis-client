@@ -4,35 +4,37 @@
  */
 
 import { actionTypes } from '../util';
-import { storeModule } from '../create-store';
+import { createStoreModule } from '../create-store';
 
-function init() {
-  return {
-    /**
-     * Annotation `$tag`s that correspond to annotations with active API requests
-     */
-    activeAnnotationSaveRequests: [],
-    /**
-     * The number of API requests that have started and not yet completed.
-     */
-    activeApiRequests: 0,
-    /**
-     * The number of annotation fetches that have started and not yet completed.
-     */
-    activeAnnotationFetches: 0,
-    /**
-     * Have annotations ever been fetched?
-     */
-    hasFetchedAnnotations: false,
-    /**
-     * The number of total annotation results the service reported as
-     * matching the most recent load/search request
-     */
-    annotationResultCount: null,
-  };
-}
+const initialState = {
+  /**
+   * Annotation `$tag`s that correspond to annotations with active API requests
+   *
+   * @type {string[]}
+   */
+  activeAnnotationSaveRequests: [],
+  /**
+   * The number of API requests that have started and not yet completed.
+   */
+  activeApiRequests: 0,
+  /**
+   * The number of annotation fetches that have started and not yet completed.
+   */
+  activeAnnotationFetches: 0,
+  /**
+   * Have annotations ever been fetched?
+   */
+  hasFetchedAnnotations: false,
+  /**
+   * The number of total annotation results the service reported as
+   * matching the most recent load/search request
+   *
+   * @type {number|null}
+   */
+  annotationResultCount: null,
+};
 
-const update = {
+const reducers = {
   API_REQUEST_STARTED(state) {
     return {
       ...state,
@@ -61,9 +63,8 @@ const update = {
     ) {
       addToStarted.push(action.annotation.$tag);
     }
-    const updatedSaves = state.activeAnnotationSaveRequests.concat(
-      addToStarted
-    );
+    const updatedSaves =
+      state.activeAnnotationSaveRequests.concat(addToStarted);
     return {
       ...state,
       activeAnnotationSaveRequests: updatedSaves,
@@ -108,7 +109,7 @@ const update = {
   },
 };
 
-const actions = actionTypes(update);
+const actions = actionTypes(reducers);
 
 /** Action Creators */
 
@@ -189,12 +190,11 @@ function isSavingAnnotation(state, annotation) {
 
 /** @typedef {import('../../../types/api').Annotation} Annotation */
 
-export default storeModule({
-  init,
-  update,
+export default createStoreModule(initialState, {
+  reducers,
   namespace: 'activity',
 
-  actions: {
+  actionCreators: {
     annotationFetchStarted,
     annotationFetchFinished,
     annotationSaveStarted,

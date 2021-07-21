@@ -20,14 +20,18 @@
 import { normalizeURI } from '../util/url';
 
 /**
+ * @typedef Link
+ * @prop {string} link.href
+ * @prop {string} [link.rel]
+ * @prop {string} [link.type]
+ */
+
+/**
  * Extension of the `Metadata` type with non-optional fields for `dc`, `eprints` etc.
  *
  * @typedef HTMLDocumentMetadata
  * @prop {string} title
- * @prop {Object[]} link
- *   @prop {string} [link.rel]
- *   @prop {string} [link.type]
- *   @prop {string} link.href
+ * @prop {Link[]} link
  * @prop {Object.<string, string[]>} dc
  * @prop {Object.<string, string[]>} eprints
  * @prop {Object.<string, string[]>} facebook
@@ -39,41 +43,15 @@ import { normalizeURI } from '../util/url';
  */
 
 /**
- * Create an empty `HTMLDocumentMetadata` object.
- *
- * @return {HTMLDocumentMetadata}
- */
-function createMetadata() {
-  return {
-    title: document.title,
-    link: [],
-    dc: {},
-    eprints: {},
-    facebook: {},
-    highwire: {},
-    prism: {},
-    twitter: {},
-  };
-}
-
-/**
  * HTMLMetadata reads metadata/links from the current HTML document.
  */
 export class HTMLMetadata {
   /**
    * @param {object} [options]
    *   @param {Document} [options.document]
-   *   @param {string} [options.baseURI]
-   *   @param {normalizeURI} [options.normalizeURI]
    */
   constructor(options = {}) {
-    this.metadata = createMetadata();
-
     this.document = options.document || document;
-    this.baseURI = options.baseURI || this.document.baseURI;
-    this.normalizeURI = options.normalizeURI || normalizeURI;
-
-    this.getDocumentMetadata();
   }
 
   /**
@@ -83,74 +61,51 @@ export class HTMLMetadata {
    */
   uri() {
     let uri = decodeURIComponent(this._getDocumentHref());
-    for (let link of this.metadata.link) {
+
+    // Use the `link[rel=canonical]` element's href as the URL if present.
+    const links = this._getLinks();
+    for (let link of links) {
       if (link.rel === 'canonical') {
         uri = link.href;
       }
     }
+
     return uri;
   }
 
   /**
-   * Returns all uris for the document being annotated
-   *
-   * @return {string[]}
-   */
-  uris() {
-    const uniqueUrls = {};
-    for (let link of this.metadata.link) {
-      if (link.href) {
-        uniqueUrls[link.href] = true;
-      }
-    }
-    return Object.keys(uniqueUrls);
-  }
-
-  /**
    * Return metadata for the current page.
+   *
+   * @return {HTMLDocumentMetadata}
    */
   getDocumentMetadata() {
-    this.metadata = createMetadata();
+    /** @type {HTMLDocumentMetadata} */
+    const metadata = {
+      title: document.title,
+      link: [],
 
-    // first look for some common metadata types
-    // TODO: look for microdata/rdfa?
-    this._getHighwire();
-    this._getDublinCore();
-    this._getFacebook();
-    this._getEprints();
-    this._getPrism();
-    this._getTwitter();
-    this._getFavicon();
+      dc: this._getMetaTags('dc', 'name', '.'),
+      eprints: this._getMetaTags('eprints', 'name', '.'),
+      facebook: this._getMetaTags('og', 'property', ':'),
+      highwire: this._getMetaTags('citation', 'name', '_'),
+      prism: this._getMetaTags('prism', 'name', '.'),
+      twitter: this._getMetaTags('twitter', 'name', ':'),
+    };
 
-    // extract out/normalize some things
-    this._getTitle();
-    this._getLinks();
+    const favicon = this._getFavicon();
+    if (favicon) {
+      metadata.favicon = favicon;
+    }
 
-    return this.metadata;
-  }
+    metadata.title = this._getTitle(metadata);
+    metadata.link = this._getLinks(metadata);
 
-  _getHighwire() {
-    this.metadata.highwire = this._getMetaTags('citation', 'name', '_');
-  }
+    const dcLink = metadata.link.find(link => link.href.startsWith('urn:x-dc'));
+    if (dcLink) {
+      metadata.documentFingerprint = dcLink.href;
+    }
 
-  _getFacebook() {
-    this.metadata.facebook = this._getMetaTags('og', 'property', ':');
-  }
-
-  _getTwitter() {
-    this.metadata.twitter = this._getMetaTags('twitter', 'name', ':');
-  }
-
-  _getDublinCore() {
-    this.metadata.dc = this._getMetaTags('dc', 'name', '.');
-  }
-
-  _getPrism() {
-    this.metadata.prism = this._getMetaTags('prism', 'name', '.');
-  }
-
-  _getEprints() {
-    this.metadata.eprints = this._getMetaTags('eprints', 'name', '.');
+    return metadata;
   }
 
   /**
@@ -183,29 +138,37 @@ export class HTMLMetadata {
     return tags;
   }
 
-  _getTitle() {
-    if (this.metadata.highwire.title) {
-      this.metadata.title = this.metadata.highwire.title[0];
-    } else if (this.metadata.eprints.title) {
-      this.metadata.title = this.metadata.eprints.title[0];
-    } else if (this.metadata.prism.title) {
-      this.metadata.title = this.metadata.prism.title[0];
-    } else if (this.metadata.facebook.title) {
-      this.metadata.title = this.metadata.facebook.title[0];
-    } else if (this.metadata.twitter.title) {
-      this.metadata.title = this.metadata.twitter.title[0];
-    } else if (this.metadata.dc.title) {
-      this.metadata.title = this.metadata.dc.title[0];
+  /** @param {HTMLDocumentMetadata} metadata */
+  _getTitle(metadata) {
+    if (metadata.highwire.title) {
+      return metadata.highwire.title[0];
+    } else if (metadata.eprints.title) {
+      return metadata.eprints.title[0];
+    } else if (metadata.prism.title) {
+      return metadata.prism.title[0];
+    } else if (metadata.facebook.title) {
+      return metadata.facebook.title[0];
+    } else if (metadata.twitter.title) {
+      return metadata.twitter.title[0];
+    } else if (metadata.dc.title) {
+      return metadata.dc.title[0];
     } else {
-      this.metadata.title = this.document.title;
+      return this.document.title;
     }
   }
 
-  _getLinks() {
-    // We know our current location is a link for the document.
-    this.metadata.link = [{ href: this._getDocumentHref() }];
+  /**
+   * Get document URIs from `<link>` and `<meta>` elements on the page.
+   *
+   * @param {Pick<HTMLDocumentMetadata, 'highwire'|'dc'>} [metadata] -
+   *   Dublin Core and Highwire metadata parsed from `<meta>` tags.
+   * @return {Link[]}
+   */
+  _getLinks(metadata = { dc: {}, highwire: {} }) {
+    /** @type {Link[]} */
+    const links = [{ href: this._getDocumentHref() }];
 
-    // Extract links from certain `<link>` tags.
+    // Extract links from `<link>` tags with certain `rel` values.
     const linkElements = Array.from(this.document.querySelectorAll('link'));
     for (let link of linkElements) {
       if (
@@ -227,19 +190,19 @@ export class HTMLMetadata {
 
       try {
         const href = this._absoluteUrl(link.href);
-        this.metadata.link.push({ href, rel: link.rel, type: link.type });
+        links.push({ href, rel: link.rel, type: link.type });
       } catch (e) {
         // Ignore URIs which cannot be parsed.
       }
     }
 
-    // look for links in scholar metadata
-    for (let name of Object.keys(this.metadata.highwire)) {
-      const values = this.metadata.highwire[name];
+    // Look for links in scholar metadata
+    for (let name of Object.keys(metadata.highwire)) {
+      const values = metadata.highwire[name];
       if (name === 'pdf_url') {
         for (let url of values) {
           try {
-            this.metadata.link.push({
+            links.push({
               href: this._absoluteUrl(url),
               type: 'application/pdf',
             });
@@ -249,34 +212,34 @@ export class HTMLMetadata {
         }
       }
 
-      // kind of a hack to express DOI identifiers as links but it's a
+      // Kind of a hack to express DOI identifiers as links but it's a
       // convenient place to look them up later, and somewhat sane since
-      // they don't have a type
+      // they don't have a type.
       if (name === 'doi') {
         for (let doi of values) {
           if (doi.slice(0, 4) !== 'doi:') {
             doi = `doi:${doi}`;
           }
-          this.metadata.link.push({ href: doi });
+          links.push({ href: doi });
         }
       }
     }
 
-    // look for links in dublincore data
-    for (let name of Object.keys(this.metadata.dc)) {
-      const values = this.metadata.dc[name];
+    // Look for links in Dublin Core data
+    for (let name of Object.keys(metadata.dc)) {
+      const values = metadata.dc[name];
       if (name === 'identifier') {
         for (let id of values) {
           if (id.slice(0, 4) === 'doi:') {
-            this.metadata.link.push({ href: id });
+            links.push({ href: id });
           }
         }
       }
     }
 
-    // look for a link to identify the resource in dublincore metadata
-    const dcRelationValues = this.metadata.dc['relation.ispartof'];
-    const dcIdentifierValues = this.metadata.dc.identifier;
+    // Look for a link to identify the resource in Dublin Core metadata
+    const dcRelationValues = metadata.dc['relation.ispartof'];
+    const dcIdentifierValues = metadata.dc.identifier;
     if (dcRelationValues && dcIdentifierValues) {
       const dcUrnRelationComponent =
         dcRelationValues[dcRelationValues.length - 1];
@@ -287,22 +250,24 @@ export class HTMLMetadata {
         encodeURIComponent(dcUrnRelationComponent) +
         '/' +
         encodeURIComponent(dcUrnIdentifierComponent);
-      this.metadata.link.push({ href: dcUrn });
-      // set this as the documentFingerprint as a hint to include this in search queries
-      this.metadata.documentFingerprint = dcUrn;
+      links.push({ href: dcUrn });
     }
+
+    return links;
   }
 
   _getFavicon() {
+    let favicon = null;
     for (let link of Array.from(this.document.querySelectorAll('link'))) {
       if (['shortcut icon', 'icon'].includes(link.rel)) {
         try {
-          this.metadata.favicon = this._absoluteUrl(link.href);
+          favicon = this._absoluteUrl(link.href);
         } catch (e) {
           // Ignore URIs which cannot be parsed.
         }
       }
     }
+    return favicon;
   }
 
   /**
@@ -310,7 +275,7 @@ export class HTMLMetadata {
    * exception if the URL cannot be parsed.
    */
   _absoluteUrl(url) {
-    return this.normalizeURI(url, this.baseURI);
+    return normalizeURI(url, this.document.baseURI);
   }
 
   // Get the true URI record when it's masked via a different protocol.
@@ -328,10 +293,10 @@ export class HTMLMetadata {
 
     // Otherwise, try using the location specified by the <base> element.
     if (
-      this.baseURI &&
-      allowedSchemes.includes(new URL(this.baseURI).protocol)
+      this.document.baseURI &&
+      allowedSchemes.includes(new URL(this.document.baseURI).protocol)
     ) {
-      return this.baseURI;
+      return this.document.baseURI;
     }
 
     // Fall back to returning the document URI, even though the scheme is not

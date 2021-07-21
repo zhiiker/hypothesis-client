@@ -1,5 +1,3 @@
-import scrollIntoView from 'scroll-into-view';
-
 import { Adder } from './adder';
 import { CrossFrame } from './cross-frame';
 import { HTMLIntegration } from './integrations/html';
@@ -23,6 +21,7 @@ import { ListenerCollection } from './util/listener-collection';
  * @typedef {import('./util/emitter').EventBus} EventBus
  * @typedef {import('../types/annotator').AnnotationData} AnnotationData
  * @typedef {import('../types/annotator').Anchor} Anchor
+ * @typedef {import('../types/annotator').Destroyable} Destroyable
  * @typedef {import('../types/annotator').Integration} Integration
  * @typedef {import('../types/annotator').SidebarLayout} SidebarLayout
  * @typedef {import('../types/api').Target} Target
@@ -103,6 +102,8 @@ function resolveAnchor(anchor) {
  *
  * The anchoring implementation defaults to a generic one for HTML documents and
  * can be overridden to handle different document types.
+ *
+ * @implements Destroyable
  */
 export default class Guest {
   /**
@@ -180,6 +181,15 @@ export default class Guest {
     // Setup event handlers on the root element
     this._listeners = new ListenerCollection();
     this._setupElementEvents();
+
+    /**
+     * Tags of currently focused annotations. This is used to set the focused
+     * state correctly for new highlights if the associated annotation is already
+     * focused in the sidebar.
+     *
+     * @type {Set<string>}
+     */
+    this._focusedAnnotations = new Set();
   }
 
   // Add DOM event listeners for clicks, taps etc. on the document and
@@ -284,6 +294,9 @@ export default class Guest {
     // Handlers for events sent when user hovers or clicks on an annotation card
     // in the sidebar.
     this.crossframe.on('focusAnnotations', (tags = []) => {
+      this._focusedAnnotations.clear();
+      tags.forEach(tag => this._focusedAnnotations.add(tag));
+
       for (let anchor of this.anchors) {
         if (anchor.highlights) {
           const toggle = tags.includes(anchor.annotation.$tag);
@@ -293,25 +306,27 @@ export default class Guest {
     });
 
     this.crossframe.on('scrollToAnnotation', tag => {
-      for (let anchor of this.anchors) {
-        if (anchor.highlights) {
-          if (anchor.annotation.$tag === tag) {
-            const range = resolveAnchor(anchor);
-            if (!range) {
-              continue;
-            }
+      const anchor = this.anchors.find(a => a.annotation.$tag === tag);
+      if (!anchor?.highlights) {
+        return;
+      }
+      const range = resolveAnchor(anchor);
+      if (!range) {
+        return;
+      }
 
-            const event = new CustomEvent('scrolltorange', {
-              bubbles: true,
-              cancelable: true,
-              detail: range,
-            });
-            const defaultNotPrevented = this.element.dispatchEvent(event);
-            if (defaultNotPrevented) {
-              scrollIntoView(anchor.highlights[0]);
-            }
-          }
-        }
+      // Emit a custom event that the host page can respond to. This is useful,
+      // for example, if the highlighted content is contained in a collapsible
+      // section of the page that needs to be un-collapsed.
+      const event = new CustomEvent('scrolltorange', {
+        bubbles: true,
+        cancelable: true,
+        detail: range,
+      });
+      const defaultNotPrevented = this.element.dispatchEvent(event);
+
+      if (defaultNotPrevented) {
+        this._integration.scrollToAnchor(anchor);
       }
     });
 
@@ -402,13 +417,17 @@ export default class Guest {
         return;
       }
 
-      const highlights = /** @type {AnnotationHighlight[]} */ (highlightRange(
-        range
-      ));
+      const highlights = /** @type {AnnotationHighlight[]} */ (
+        highlightRange(range)
+      );
       highlights.forEach(h => {
         h._annotation = anchor.annotation;
       });
       anchor.highlights = highlights;
+
+      if (this._focusedAnnotations.has(anchor.annotation.$tag)) {
+        setHighlightsFocused(highlights, true);
+      }
     };
 
     // Remove existing anchors for this annotation.
@@ -577,6 +596,15 @@ export default class Guest {
   }
 
   /**
+   * Scroll the document content so that `anchor` is visible.
+   *
+   * @param {Anchor} anchor
+   */
+  scrollToAnchor(anchor) {
+    return this._integration.scrollToAnchor(anchor);
+  }
+
+  /**
    * Set whether highlights are visible in the document or not.
    *
    * @param {boolean} shouldShowHighlights
@@ -614,5 +642,15 @@ export default class Guest {
    */
   get sideBySideActive() {
     return this._sideBySideActive;
+  }
+
+  /**
+   * Return the tags of annotations that are currently displayed in a focused
+   * state.
+   *
+   * @return {Set<string>}
+   */
+  get focusedAnnotationTags() {
+    return this._focusedAnnotations;
   }
 }

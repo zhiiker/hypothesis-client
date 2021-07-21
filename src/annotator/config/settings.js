@@ -1,79 +1,36 @@
 import { parseJsonConfig } from '../../boot/parse-json-config';
+import { toBoolean } from '../../shared/type-coercions';
 
 import configFuncSettingsFrom from './config-func-settings-from';
-import isBrowserExtension from './is-browser-extension';
+import { urlFromLinkTag } from './url-from-link-tag';
 
+/**
+ * @typedef SettingsGetters
+ * @prop {string|null} annotations
+ * @prop {string|null} query
+ * @prop {string|null} group
+ * @prop {string} showHighlights
+ * @prop {string} clientUrl
+ * @prop {string} sidebarAppUrl
+ * @prop {string} notebookAppUrl
+ 
+ * @prop {(name: string, options?: Object) => (string|null)} hostPageSetting
+ */
+
+/**
+ * @return {SettingsGetters}
+ */
 export default function settingsFrom(window_) {
-  const jsonConfigs = parseJsonConfig(window_.document);
+  // Prioritize the `window.hypothesisConfig` function over the JSON format
+  // Via uses `window.hypothesisConfig` and makes it non-configurable and non-writable.
+  // In addition, Via sets the `ignoreOtherConfiguration` option to prevent configuration merging.
   const configFuncSettings = configFuncSettingsFrom(window_);
 
-  /**
-   * Return the href of the first annotator link in the given
-   * document with this `rel` attribute.
-   *
-   * Return the value of the href attribute of the first
-   * `<link type="application/annotator+html" rel="${rel}">`
-   * element in the given document. This URL is used as the `src` for sidebar
-   * or notebook iframes.
-   *
-   * @param {string} rel - The `rel` attribute to match
-   * @return {string} - The URL to use for the iframe
-   * @throws {Error} - If there's no link with the `rel` indicated, or the first
-   *   matching link has no `href`
-   */
-  function urlFromLinkTag(rel) {
-    const link = window_.document.querySelector(
-      `link[type="application/annotator+html"][rel="${rel}"]`
-    );
-
-    if (!link) {
-      throw new Error(
-        `No application/annotator+html (rel="${rel}") link in the document`
-      );
-    }
-
-    if (!link.href) {
-      throw new Error(
-        `application/annotator+html (rel="${rel}") link has no href`
-      );
-    }
-
-    return link.href;
-  }
-
-  /**
-   * Return the href URL of the first annotator client link in the given document.
-   *
-   * Return the value of the href attribute of the first
-   * `<link type="application/annotator+javascript" rel="hypothesis-client">`
-   * element in the given document.
-   *
-   * This URL is used to identify where the client is from and what url should
-   * be used inside of subframes.
-   *
-   * @return {string} - The URL that the client is hosted from
-   * @throws {Error} - If there's no annotator link or the first annotator has
-   *   no href.
-   *
-   */
-  function clientUrl() {
-    const link = window_.document.querySelector(
-      'link[type="application/annotator+javascript"][rel="hypothesis-client"]'
-    );
-
-    if (!link) {
-      throw new Error(
-        'No application/annotator+javascript (rel="hypothesis-client") link in the document'
-      );
-    }
-
-    if (!link.href) {
-      throw new Error(
-        'application/annotator+javascript (rel="hypothesis-client") link has no href'
-      );
-    }
-
-    return link.href;
+  let jsonConfigs;
+  if (toBoolean(configFuncSettings.ignoreOtherConfiguration)) {
+    jsonConfigs = {};
+  } else {
+    jsonConfigs = parseJsonConfig(window_.document);
   }
 
   /**
@@ -123,10 +80,11 @@ export default function settingsFrom(window_) {
     return jsonConfigs.group || groupFromURL();
   }
 
+  // TODO: Move this to a coerce method
   function showHighlights() {
     let showHighlights_ = hostPageSetting('showHighlights');
 
-    if (showHighlights_ === null) {
+    if (showHighlights_ === undefined) {
       showHighlights_ = 'always'; // The default value is 'always'.
     }
 
@@ -170,30 +128,26 @@ export default function settingsFrom(window_) {
     return jsonConfigs.query || queryFromURL();
   }
 
-  function hostPageSetting(name, options = {}) {
-    const allowInBrowserExt = options.allowInBrowserExt || false;
-    const hasDefaultValue = typeof options.defaultValue !== 'undefined';
-    // Optional coerce method, or a no-op.
-    const coerceValue =
-      typeof options.coerce === 'function' ? options.coerce : name => name;
-
-    if (!allowInBrowserExt && isBrowserExtension(urlFromLinkTag('sidebar'))) {
-      return hasDefaultValue ? options.defaultValue : null;
-    }
-
+  /**
+   * Returns the first setting value found from the respective sources in order.
+   *
+   *  1. window.hypothesisConfig()
+   *  2. <script class="js-hypothesis-config">
+   *
+   * If the setting is not found in either source, then return undefined.
+   *
+   * @param {string} name - Unique name of the setting
+   */
+  function hostPageSetting(name) {
     if (configFuncSettings.hasOwnProperty(name)) {
-      return coerceValue(configFuncSettings[name]);
+      return configFuncSettings[name];
     }
 
     if (jsonConfigs.hasOwnProperty(name)) {
-      return coerceValue(jsonConfigs[name]);
+      return jsonConfigs[name];
     }
 
-    if (hasDefaultValue) {
-      return options.defaultValue;
-    }
-
-    return null;
+    return undefined;
   }
 
   return {
@@ -201,23 +155,23 @@ export default function settingsFrom(window_) {
       return annotations();
     },
     get clientUrl() {
-      return clientUrl();
+      return urlFromLinkTag(window_, 'hypothesis-client', 'javascript');
     },
     get group() {
       return group();
     },
     get notebookAppUrl() {
-      return urlFromLinkTag('notebook');
+      return urlFromLinkTag(window_, 'notebook', 'html');
     },
     get showHighlights() {
       return showHighlights();
     },
     get sidebarAppUrl() {
-      return urlFromLinkTag('sidebar');
+      return urlFromLinkTag(window_, 'sidebar', 'html');
     },
     get query() {
       return query();
     },
-    hostPageSetting: hostPageSetting,
+    hostPageSetting,
   };
 }

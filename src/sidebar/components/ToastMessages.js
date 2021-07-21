@@ -99,7 +99,7 @@ function ToastMessages({ toastMessenger }) {
           <ToastMessage
             message={message}
             key={message.id}
-            onDismiss={toastMessenger.dismiss}
+            onDismiss={id => toastMessenger.dismiss(id)}
           />
         ))}
       </ul>
@@ -107,6 +107,4 @@ function ToastMessages({ toastMessenger }) {
   );
 }
 
-ToastMessages.injectedProps = ['toastMessenger'];
-
-export default withServices(ToastMessages);
+export default withServices(ToastMessages, ['toastMessenger']);

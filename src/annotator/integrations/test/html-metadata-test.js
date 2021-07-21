@@ -10,32 +10,25 @@
  ** https://github.com/openannotation/annotator/blob/master/LICENSE
  */
 
-import { normalizeURI } from '../../util/url';
 import { HTMLMetadata } from '../html-metadata';
 
-describe('HTMLMetadata', function () {
-  let fakeNormalizeURI;
+describe('HTMLMetadata', () => {
   let tempDocument;
   let tempDocumentHead;
   let testDocument = null;
 
-  beforeEach(function () {
+  beforeEach(() => {
     tempDocument = document.createDocumentFragment();
     tempDocument.location = { href: 'https://example.com' };
     tempDocumentHead = document.createElement('head');
     tempDocument.appendChild(tempDocumentHead);
 
-    fakeNormalizeURI = sinon.stub().callsFake((url, base) => {
-      return normalizeURI(url, base);
-    });
-
     testDocument = new HTMLMetadata({
       document: tempDocument,
-      normalizeURI: fakeNormalizeURI,
     });
   });
 
-  describe('annotation should have some metadata', function () {
+  describe('#getDocumentMetadata', () => {
     let metadata = null;
 
     beforeEach(() => {
@@ -62,17 +55,69 @@ describe('HTMLMetadata', function () {
         <link rel="canonical" href="http://example.com/canonical"></link>
       `;
 
-      testDocument.getDocumentMetadata();
-      metadata = testDocument.metadata;
+      metadata = testDocument.getDocumentMetadata();
     });
 
-    it('should have metadata', () => assert.ok(metadata));
+    it('should return title', () => {
+      // Populate all supported title sources.
+      tempDocument.title = 'Test document title';
+      tempDocumentHead.innerHTML = `
+  <meta name="eprints.title" content="Eprints title">
+  <meta name="prism.title" content="PRISM title">
+  <meta name="dc.title" content="Dublin Core title">
+  <meta name="citation_title" content="Highwire title">
+  <meta property="og:title" content="Facebook title">
+  <meta name="twitter:title" content="Twitter title">
+  `;
 
-    it('should have a title, derived from highwire metadata if possible', () => {
-      assert.equal(metadata.title, 'Foo');
+      // Title values, in order of source priority.
+      const sources = [
+        {
+          metaName: 'citation_title',
+          value: 'Highwire title',
+        },
+        {
+          metaName: 'eprints.title',
+          value: 'Eprints title',
+        },
+        {
+          metaName: 'prism.title',
+          value: 'PRISM title',
+        },
+        {
+          metaAttr: 'property',
+          metaName: 'og:title',
+          value: 'Facebook title',
+        },
+        {
+          metaName: 'twitter:title',
+          value: 'Twitter title',
+        },
+        {
+          metaName: 'dc.title',
+          value: 'Dublin Core title',
+        },
+        {
+          value: 'Test document title',
+        },
+      ];
+
+      for (let source of sources) {
+        const metadata = testDocument.getDocumentMetadata();
+        assert.equal(metadata.title, source.value);
+
+        // Remove this title source. The next iteration should return the next
+        // title value in the priority order.
+        if (source.metaName) {
+          const attr = source.metaAttr ?? 'name';
+          tempDocumentHead
+            .querySelector(`meta[${attr}="${source.metaName}"]`)
+            .remove();
+        }
+      }
     });
 
-    it('should have links with absolute hrefs and types', function () {
+    it('should return links with absolute hrefs and types', () => {
       assert.ok(metadata.link);
       assert.equal(metadata.link.length, 10);
       assert.equal(metadata.link[1].rel, 'alternate');
@@ -105,14 +150,14 @@ describe('HTMLMetadata', function () {
       assert.equal(metadata.link.length, 10);
     });
 
-    it('should have highwire metadata', function () {
+    it('should return Highwire metadata', () => {
       assert.ok(metadata.highwire);
       assert.deepEqual(metadata.highwire.pdf_url, ['foo.pdf']);
       assert.deepEqual(metadata.highwire.doi, ['10.1175/JCLI-D-11-00015.1']);
       assert.deepEqual(metadata.highwire.title, ['Foo']);
     });
 
-    it('should have dublincore metadata', function () {
+    it('should return Dublin Core metadata', () => {
       assert.ok(metadata.dc);
       assert.deepEqual(metadata.dc.identifier, [
         'doi:10.1175/JCLI-D-11-00015.1',
@@ -122,42 +167,33 @@ describe('HTMLMetadata', function () {
       assert.deepEqual(metadata.dc.type, ['Article']);
     });
 
-    it('should have facebook metadata', function () {
+    it('should return Facebook metadata', () => {
       assert.ok(metadata.facebook);
       assert.deepEqual(metadata.facebook.url, ['http://example.com']);
     });
 
-    it('should have eprints metadata', function () {
+    it('should return eprints metadata', () => {
       assert.ok(metadata.eprints);
       assert.deepEqual(metadata.eprints.title, [
         'Computer Lib / Dream Machines',
       ]);
     });
 
-    it('should have prism metadata', function () {
+    it('should return PRISM metadata', () => {
       assert.ok(metadata.prism);
       assert.deepEqual(metadata.prism.title, ['Literary Machines']);
-
-      it('should have twitter card metadata', function () {
-        assert.ok(metadata.twitter);
-        assert.deepEqual(metadata.twitter.site, ['@okfn']);
-      });
     });
 
-    it('should have unique uris', function () {
-      const uris = testDocument.uris();
-      assert.equal(uris.length, 8);
+    it('should return Twitter card metadata', () => {
+      assert.ok(metadata.twitter);
+      assert.deepEqual(metadata.twitter.site, ['@okfn']);
     });
 
-    it('uri() returns the canonical uri', function () {
-      const uri = testDocument.uri();
-      assert.equal(uri, metadata.link[5].href);
+    it('should return favicon URL', () => {
+      assert.equal(metadata.favicon, 'http://example.com/images/icon.ico');
     });
 
-    it('should have a favicon', () =>
-      assert.equal(metadata.favicon, 'http://example.com/images/icon.ico'));
-
-    it('should have a documentFingerprint as the dc resource identifiers URN href', () => {
+    it('should set `documentFingerprint` to the dc resource identifiers URN href', () => {
       assert.equal(metadata.documentFingerprint, metadata.link[9].href);
     });
 
@@ -167,12 +203,12 @@ describe('HTMLMetadata', function () {
         <link rel="alternate" href="http://a:b:c">
       `;
 
-      testDocument.getDocumentMetadata();
+      const metadata = testDocument.getDocumentMetadata();
 
       // There should be one link with the document location and one for the
       // valid `<link>` tag.
-      assert.deepEqual(testDocument.metadata.link.length, 2);
-      assert.deepEqual(testDocument.metadata.link[1], {
+      assert.deepEqual(metadata.link.length, 2);
+      assert.deepEqual(metadata.link[1], {
         rel: 'alternate',
         href: 'https://example.com/foo',
         type: '',
@@ -183,35 +219,35 @@ describe('HTMLMetadata', function () {
       tempDocumentHead.innerHTML = `
         <link rel="favicon" href="http://a:b:c">
       `;
-      testDocument.getDocumentMetadata();
-      assert.isUndefined(testDocument.metadata.favicon);
+      const metadata = testDocument.getDocumentMetadata();
+      assert.isUndefined(metadata.favicon);
     });
 
     it('should ignore `<meta>` PDF links with invalid URIs', () => {
       tempDocumentHead.innerHTML = `
         <meta name="citation_pdf_url" content="http://a:b:c">
       `;
-      testDocument.getDocumentMetadata();
+      const metadata = testDocument.getDocumentMetadata();
 
       // There should only be one link for the document's location.
       // The invalid PDF link should be ignored.
-      assert.equal(testDocument.metadata.link.length, 1);
+      assert.equal(metadata.link.length, 1);
     });
   });
 
-  describe('#_absoluteUrl', function () {
-    it('should add the protocol when the url starts with two slashes', function () {
+  describe('#_absoluteUrl', () => {
+    it('should add the protocol when the url starts with two slashes', () => {
       const result = testDocument._absoluteUrl('//example.com/');
       const expected = `${document.location.protocol}//example.com/`;
       assert.equal(result, expected);
     });
 
-    it('should add a trailing slash when given an empty path', function () {
+    it('should add a trailing slash when given an empty path', () => {
       const result = testDocument._absoluteUrl('http://example.com');
       assert.equal(result, 'http://example.com/');
     });
 
-    it('should make a relative path into an absolute url', function () {
+    it('should make a relative path into an absolute url', () => {
       const result = testDocument._absoluteUrl('path');
       const expected =
         document.location.protocol +
@@ -222,7 +258,7 @@ describe('HTMLMetadata', function () {
       assert.equal(result, expected);
     });
 
-    it('should make an absolute path into an absolute url', function () {
+    it('should make an absolute path into an absolute url', () => {
       const result = testDocument._absoluteUrl('/path');
       const expected =
         document.location.protocol + '//' + document.location.host + '/path';
@@ -230,8 +266,8 @@ describe('HTMLMetadata', function () {
     });
   });
 
-  describe('#uri', function () {
-    beforeEach(function () {
+  describe('#uri', () => {
+    beforeEach(() => {
       // Remove any existing canonical links which would otherwise override the
       // document's own location.
       const canonicalLink = document.querySelector('link[rel="canonical"]');
@@ -253,6 +289,7 @@ describe('HTMLMetadata', function () {
       // document.
       const fakeDocument = {
         createElement: htmlDoc.createElement.bind(htmlDoc), // eslint-disable-line no-restricted-properties
+        baseURI: baseURI ?? href,
         querySelectorAll: htmlDoc.querySelectorAll.bind(htmlDoc), // eslint-disable-line no-restricted-properties
         location: {
           href,
@@ -260,7 +297,6 @@ describe('HTMLMetadata', function () {
       };
       const doc = new HTMLMetadata({
         document: fakeDocument,
-        baseURI,
       });
       return doc;
     };
@@ -270,14 +306,14 @@ describe('HTMLMetadata', function () {
       'https://publisher.org/book',
       'file:///Users/jim/book',
     ].forEach(href =>
-      it("should return the document's URL if it has an allowed scheme", function () {
+      it("should return the document's URL if it has an allowed scheme", () => {
         const baseURI = 'https://publisher.org/';
         const doc = createDoc(href, baseURI);
         assert.equal(doc.uri(), href);
       })
     );
 
-    it("should return the baseURI if the document's URL does not have an allowed scheme", function () {
+    it("should return the baseURI if the document's URL does not have an allowed scheme", () => {
       const href = 'blob:1234-5678';
       const baseURI = 'https://publisher.org/book';
       const doc = createDoc(href, baseURI);
@@ -292,15 +328,15 @@ describe('HTMLMetadata', function () {
       // created by a `<base>` tag.
       ['blob:1234', 'doi:foo'],
       ['chrome://foo', 'chrome://blah'],
-    ].forEach(function (...args) {
+    ].forEach((...args) => {
       const [href, baseURI] = Array.from(args[0]);
-      it("should return the document's URL if it and the baseURI do not have an allowed scheme", function () {
+      it("should return the document's URL if it and the baseURI do not have an allowed scheme", () => {
         const doc = createDoc(href, baseURI);
         assert.equal(doc.uri(), href);
       });
     });
 
-    it('returns the canonical URI if present', function () {
+    it('returns the canonical URI if present', () => {
       const htmlDoc = document.implementation.createHTMLDocument();
       const canonicalLink = htmlDoc.createElement('link');
       canonicalLink.rel = 'canonical';

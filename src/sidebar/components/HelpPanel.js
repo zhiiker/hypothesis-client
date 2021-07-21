@@ -10,7 +10,7 @@ import Tutorial from './Tutorial';
 import VersionInfo from './VersionInfo';
 
 /**
- * @typedef {import('../components/UserMenu').AuthState} AuthState
+ * @typedef {import('../helpers/version-data').AuthState} AuthState
  */
 
 /**
@@ -42,8 +42,8 @@ function HelpPanelTab({ linkText, url }) {
 
 /**
  * @typedef HelpPanelProps
- * @prop {AuthState} auth - Object with auth and user information
- * @prop {Object} session - Injected service
+ * @prop {AuthState} auth
+ * @prop {import('../services/session').SessionService} session
  */
 
 /**
@@ -59,8 +59,8 @@ function HelpPanel({ auth, session }) {
   // auto-open triggering of this panel is owned by the `HypothesisApp` component.
   // This reference is such that we know whether we should "dismiss" the tutorial
   // (permanently for this user) when it is closed.
-  const hasAutoDisplayPreference = !!store.profile().preferences
-    .show_sidebar_tutorial;
+  const hasAutoDisplayPreference =
+    !!store.profile().preferences.show_sidebar_tutorial;
 
   // The "Tutorial" (getting started) subpanel is the default panel shown
   const [activeSubPanel, setActiveSubPanel] = useState('tutorial');
@@ -86,17 +86,16 @@ function HelpPanel({ auth, session }) {
     setActiveSubPanel(panelName);
   };
 
-  const dismissFn = session.dismissSidebarTutorial; // Reference for useCallback dependency
   const onActiveChanged = useCallback(
     active => {
       if (!active && hasAutoDisplayPreference) {
         // If the tutorial is currently being auto-displayed, update the user
         // preference to disable the auto-display from happening on subsequent
         // app launches
-        dismissFn();
+        session.dismissSidebarTutorial();
       }
     },
-    [dismissFn, hasAutoDisplayPreference]
+    [session, hasAutoDisplayPreference]
   );
 
   return (
@@ -154,6 +153,4 @@ function HelpPanel({ auth, session }) {
   );
 }
 
-HelpPanel.injectedProps = ['session'];
-
-export default withServices(HelpPanel);
+export default withServices(HelpPanel, ['session']);

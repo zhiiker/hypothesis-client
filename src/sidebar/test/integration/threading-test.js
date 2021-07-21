@@ -3,7 +3,7 @@ import { useReducer } from 'preact/hooks';
 import { act } from 'preact/test-utils';
 
 import { Injector } from '../../../shared/injector';
-import storeFactory from '../../store';
+import { createSidebarStore } from '../../store';
 
 import { ServiceContext } from '../../service-context';
 import useRootThread from '../../components/hooks/use-root-thread';
@@ -44,9 +44,9 @@ describe('integration: annotation threading', () => {
   let store;
   let forceUpdate;
 
-  beforeEach(function () {
+  beforeEach(() => {
     const container = new Injector()
-      .register('store', storeFactory)
+      .register('store', { factory: createSidebarStore })
       .register('annotationsService', () => {})
       .register('settings', { value: {} });
 

@@ -58,7 +58,7 @@ describe('GroupList', () => {
     $imports.$mock(mockImportedComponents());
     $imports.$mock({
       '../../store/use-store': { useStoreProxy: () => fakeStore },
-      '../../config/service-config': fakeServiceConfig,
+      '../../config/service-config': { serviceConfig: fakeServiceConfig },
     });
   });
 
@@ -165,7 +165,9 @@ describe('GroupList', () => {
   context('when `isThirdPartyService` is true', () => {
     beforeEach(() => {
       $imports.$mock({
-        '../../helpers/is-third-party-service': () => true,
+        '../../helpers/is-third-party-service': {
+          isThirdPartyService: () => true,
+        },
       });
     });
 

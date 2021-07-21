@@ -26,9 +26,9 @@ export function documentMetadata(annotation) {
   }
 
   return {
-    uri: uri,
-    domain: domain,
-    title: title,
+    uri,
+    domain,
+    title,
   };
 }
 
@@ -136,7 +136,7 @@ export function isPublic(annotation) {
     return isPublic;
   }
 
-  annotation.permissions.read.forEach(function (perm) {
+  annotation.permissions.read.forEach(perm => {
     const readPermArr = perm.split(':');
     if (readPermArr.length === 2 && readPermArr[0] === 'group') {
       isPublic = true;

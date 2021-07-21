@@ -1,6 +1,6 @@
 import * as util from '../util';
 
-import { storeModule } from '../create-store';
+import { createStoreModule } from '../create-store';
 
 /**
  * @typedef {import('../../../types/api').Profile} Profile
@@ -23,7 +23,7 @@ const initialProfile = {
   userid: null,
 };
 
-function init(settings) {
+function initialState(settings) {
   return {
     /**
      * The app's default authority (user identity provider), from settings,
@@ -41,7 +41,7 @@ function init(settings) {
   };
 }
 
-const update = {
+const reducers = {
   UPDATE_PROFILE: function (state, action) {
     return {
       profile: { ...action.profile },
@@ -49,7 +49,7 @@ const update = {
   },
 };
 
-const actions = util.actionTypes(update);
+const actions = util.actionTypes(reducers);
 
 /**
  * Update the profile information for the current user.
@@ -110,12 +110,11 @@ function profile(state) {
   return state.profile;
 }
 
-export default storeModule({
-  init,
+export default createStoreModule(initialState, {
   namespace: 'session',
-  update,
+  reducers,
 
-  actions: {
+  actionCreators: {
     updateProfile,
   },
 

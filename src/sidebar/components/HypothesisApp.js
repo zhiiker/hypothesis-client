@@ -3,7 +3,7 @@ import { useEffect, useMemo } from 'preact/hooks';
 
 import bridgeEvents from '../../shared/bridge-events';
 import { confirm } from '../../shared/prompts';
-import serviceConfig from '../config/service-config';
+import { serviceConfig } from '../config/service-config';
 import { useStoreProxy } from '../store/use-store';
 import { parseAccountID } from '../helpers/account-id';
 import { shouldAutoDisplayTutorial } from '../helpers/session';
@@ -24,16 +24,18 @@ import TopBar from './TopBar';
  * @typedef {import('../../types/api').Profile} Profile
  * @typedef {import('../../types/config').MergedConfig} MergedConfig
  * @typedef {import('../../shared/bridge').default} Bridge
+ * @typedef {import('./UserMenu').AuthState} AuthState
  */
 
 /**
  * Return the user's authentication status from their profile.
  *
  * @param {Profile} profile - The profile object from the API.
+ * @return {AuthState}
  */
 function authStateFromProfile(profile) {
   const parsed = parseAccountID(profile.userid);
-  if (parsed) {
+  if (parsed && profile.userid) {
     let displayName = parsed.username;
     if (profile.user_info && profile.user_info.display_name) {
       displayName = profile.user_info.display_name;
@@ -43,7 +45,6 @@ function authStateFromProfile(profile) {
       displayName,
       userid: profile.userid,
       username: parsed.username,
-      provider: parsed.provider,
     };
   } else {
     return { status: 'logged-out' };
@@ -55,7 +56,7 @@ function authStateFromProfile(profile) {
  * @prop {import('../services/auth').AuthService} auth
  * @prop {Bridge} bridge
  * @prop {MergedConfig} settings
- * @prop {Object} session
+ * @prop {import('../services/session').SessionService} session
  * @prop {import('../services/toast-messenger').ToastMessengerService} toastMessenger
  */
 
@@ -73,6 +74,7 @@ function HypothesisApp({ auth, bridge, settings, session, toastMessenger }) {
   const profile = store.profile();
   const route = store.route();
 
+  /** @type {AuthState} */
   const authState = useMemo(() => {
     if (!hasFetchedProfile) {
       return { status: 'unknown' };
@@ -181,7 +183,7 @@ function HypothesisApp({ auth, bridge, settings, session, toastMessenger }) {
       )}
       <div className="HypothesisApp__content">
         <ToastMessages />
-        <HelpPanel auth={authState} />
+        <HelpPanel auth={authState.status === 'logged-in' ? authState : {}} />
         <ShareAnnotationsPanel />
 
         {route && (
@@ -199,12 +201,10 @@ function HypothesisApp({ auth, bridge, settings, session, toastMessenger }) {
   );
 }
 
-HypothesisApp.injectedProps = [
+export default withServices(HypothesisApp, [
   'auth',
   'bridge',
   'session',
   'settings',
   'toastMessenger',
-];
-
-export default withServices(HypothesisApp);
+]);

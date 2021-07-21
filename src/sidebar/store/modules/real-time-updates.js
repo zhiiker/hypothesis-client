@@ -9,26 +9,33 @@
 
 import { createSelector } from 'reselect';
 
-import { storeModule } from '../create-store';
+import { createStoreModule } from '../create-store';
 import { actionTypes } from '../util';
 
 import annotations from './annotations';
 import groups from './groups';
 import route from './route';
 
-function init() {
-  return {
-    // Map of ID -> updated annotation for updates that have been received over
-    // the WebSocket but not yet applied
-    pendingUpdates: {},
+const initialState = {
+  /**
+   * Map of ID -> updated annotation for updates that have been received over
+   * the WebSocket but not yet applied (ie. saved to the "annotations" store
+   * module and shown in the UI).
+   *
+   * @type {Record<string, Annotation>}
+   */
+  pendingUpdates: {},
 
-    // Set of IDs of annotations which have been deleted but for which the
-    // deletion has not yet been applied
-    pendingDeletions: {},
-  };
-}
+  /**
+   * Set of IDs of annotations which have been deleted but for which the
+   * deletion has not yet been applied
+   *
+   * @type {Record<string, boolean>}
+   */
+  pendingDeletions: {},
+};
 
-const update = {
+const reducers = {
   RECEIVE_REAL_TIME_UPDATES(state, action) {
     return {
       pendingUpdates: { ...action.pendingUpdates },
@@ -76,7 +83,7 @@ const update = {
   },
 };
 
-const actions = actionTypes(update);
+const actions = actionTypes(reducers);
 
 /**
  * Record pending updates representing changes on the server that the client
@@ -183,11 +190,10 @@ function hasPendingDeletion(state, id) {
   return state.pendingDeletions.hasOwnProperty(id);
 }
 
-export default storeModule({
-  init,
+export default createStoreModule(initialState, {
   namespace: 'realTimeUpdates',
-  update,
-  actions: {
+  reducers,
+  actionCreators: {
     receiveRealTimeUpdates,
     clearPendingUpdates,
   },

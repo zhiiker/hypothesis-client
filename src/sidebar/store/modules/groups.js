@@ -1,7 +1,7 @@
 import { createSelector } from 'reselect';
 
 import * as util from '../util';
-import { storeModule } from '../create-store';
+import { createStoreModule } from '../create-store';
 
 import session from './session';
 
@@ -9,23 +9,21 @@ import session from './session';
  * @typedef {import('../../../types/api').Group} Group
  */
 
-function init() {
-  return {
-    /**
-     * List of groups.
-     * @type {Group[]}
-     */
-    groups: [],
+const initialState = {
+  /**
+   * List of groups.
+   * @type {Group[]}
+   */
+  groups: [],
 
-    /**
-     * ID of currently selected group.
-     * @type {string|null}
-     */
-    focusedGroupId: null,
-  };
-}
+  /**
+   * ID of currently selected group.
+   * @type {string|null}
+   */
+  focusedGroupId: null,
+};
 
-const update = {
+const reducers = {
   FOCUS_GROUP(state, action) {
     const group = state.groups.find(g => g.id === action.id);
     if (!group) {
@@ -67,7 +65,7 @@ const update = {
   },
 };
 
-const actions = util.actionTypes(update);
+const actions = util.actionTypes(reducers);
 
 function clearGroups() {
   return {
@@ -197,11 +195,10 @@ const getCurrentlyViewingGroups = createSelector(
   }
 );
 
-export default storeModule({
-  init,
+export default createStoreModule(initialState, {
   namespace: 'groups',
-  update,
-  actions: {
+  reducers,
+  actionCreators: {
     focusGroup,
     loadGroups,
     clearGroups,

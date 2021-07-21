@@ -1,8 +1,8 @@
 import * as util from '../util';
 
-import { storeModule } from '../create-store';
+import { createStoreModule } from '../create-store';
 
-function init(settings) {
+function initialState(settings) {
   return {
     /**
      * The ID of the direct-linked group.
@@ -42,7 +42,7 @@ function init(settings) {
   };
 }
 
-const update = {
+const reducers = {
   UPDATE_DIRECT_LINKED_GROUP_FETCH_FAILED(state, action) {
     return {
       directLinkedGroupFetchFailed: action.directLinkedGroupFetchFailed,
@@ -73,7 +73,7 @@ const update = {
   },
 };
 
-const actions = util.actionTypes(update);
+const actions = util.actionTypes(reducers);
 
 /**
  * Set the direct linked group id.
@@ -142,11 +142,10 @@ function directLinkedGroupFetchFailed(state) {
   return state.directLinkedGroupFetchFailed;
 }
 
-export default storeModule({
-  init,
+export default createStoreModule(initialState, {
   namespace: 'directLinked',
-  update,
-  actions: {
+  reducers,
+  actionCreators: {
     setDirectLinkedGroupFetchFailed,
     setDirectLinkedGroupId,
     setDirectLinkedAnnotationId,

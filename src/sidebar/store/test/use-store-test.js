@@ -1,18 +1,15 @@
 import { mount } from 'enzyme';
 import { act } from 'preact/test-utils';
 
-import createStore from '../create-store';
+import { createStore, createStoreModule } from '../create-store';
 import { useStoreProxy, $imports } from '../use-store';
 
 // Store module for use with `createStore` in tests.
-const thingsModule = {
+const initialState = () => ({ things: [] });
+const thingsModule = createStoreModule(initialState, {
   namespace: 'things',
 
-  init: () => ({
-    things: [],
-  }),
-
-  update: {
+  reducers: {
     ADD_THING(state, action) {
       if (state.things.some(t => t.id === action.thing.id)) {
         return {};
@@ -21,7 +18,7 @@ const thingsModule = {
     },
   },
 
-  actions: {
+  actionCreators: {
     addThing(id) {
       return { type: 'ADD_THING', thing: { id } };
     },
@@ -36,7 +33,7 @@ const thingsModule = {
       return state.things.find(t => t.id === id);
     },
   },
-};
+});
 
 describe('sidebar/store/use-store', () => {
   afterEach(() => {

@@ -1,7 +1,10 @@
 import { useEffect, useMemo, useState } from 'preact/hooks';
 
-import { format as formatDate } from '../../util/date';
-import { decayingInterval, toFuzzyString } from '../../util/time';
+import {
+  decayingInterval,
+  formatRelativeDate,
+  formatDate,
+} from '../../util/time';
 
 /**
  * @typedef {import("../../../types/api").Annotation} Annotation
@@ -34,9 +37,10 @@ export default function AnnotationTimestamps({
 }) {
   // "Current" time, used when calculating the relative age of `timestamp`.
   const [now, setNow] = useState(() => new Date());
-  const createdDate = useMemo(() => new Date(annotationCreated), [
-    annotationCreated,
-  ]);
+  const createdDate = useMemo(
+    () => new Date(annotationCreated),
+    [annotationCreated]
+  );
   const updatedDate = useMemo(
     () => withEditedTimestamp && new Date(annotationUpdated),
     [annotationUpdated, withEditedTimestamp]
@@ -45,7 +49,7 @@ export default function AnnotationTimestamps({
   const created = useMemo(() => {
     return {
       absolute: formatDate(createdDate),
-      relative: toFuzzyString(createdDate, now),
+      relative: formatRelativeDate(createdDate, now),
     };
   }, [createdDate, now]);
 
@@ -55,7 +59,7 @@ export default function AnnotationTimestamps({
     }
     return {
       absolute: formatDate(updatedDate),
-      relative: toFuzzyString(updatedDate, now),
+      relative: formatRelativeDate(updatedDate, now),
     };
   }, [updatedDate, now]);
 

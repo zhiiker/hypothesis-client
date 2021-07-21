@@ -6,7 +6,7 @@ import {
 import shallowEqual from 'shallowequal';
 
 import * as util from '../util';
-import { storeModule } from '../create-store';
+import { createStoreModule } from '../create-store';
 
 /**
  * @typedef {import('../../../types/annotator').DocumentMetadata} DocumentMetadata
@@ -20,12 +20,10 @@ import { storeModule } from '../create-store';
  * @prop {string} uri - Current primary URI of the document being displayed
  */
 
-function init() {
-  // The list of frames connected to the sidebar app
-  return [];
-}
+/** @type {Frame[]} */
+const initialState = [];
 
-const update = {
+const reducers = {
   CONNECT_FRAME: function (state, action) {
     return [...state, action.frame];
   },
@@ -35,7 +33,7 @@ const update = {
   },
 
   UPDATE_FRAME_ANNOTATION_FETCH_STATUS: function (state, action) {
-    const frames = state.map(function (frame) {
+    const frames = state.map(frame => {
       const match = frame.uri && frame.uri === action.uri;
       if (match) {
         return Object.assign({}, frame, {
@@ -49,7 +47,7 @@ const update = {
   },
 };
 
-const actions = util.actionTypes(update);
+const actions = util.actionTypes(reducers);
 
 /**
  * Add a frame to the list of frames currently connected to the sidebar app.
@@ -57,7 +55,7 @@ const actions = util.actionTypes(update);
  * @param {Frame} frame
  */
 function connectFrame(frame) {
-  return { type: actions.CONNECT_FRAME, frame: frame };
+  return { type: actions.CONNECT_FRAME, frame };
 }
 
 /**
@@ -66,7 +64,7 @@ function connectFrame(frame) {
  * @param {Frame} frame
  */
 function destroyFrame(frame) {
-  return { type: actions.DESTROY_FRAME, frame: frame };
+  return { type: actions.DESTROY_FRAME, frame };
 }
 
 /**
@@ -79,7 +77,7 @@ function updateFrameAnnotationFetchStatus(uri, isFetchComplete) {
   return {
     type: actions.UPDATE_FRAME_ANNOTATION_FETCH_STATUS,
     isAnnotationFetchComplete: isFetchComplete,
-    uri: uri,
+    uri,
   };
 }
 
@@ -117,13 +115,13 @@ function searchUrisForFrame(frame) {
   let uris = [frame.uri];
 
   if (frame.metadata && frame.metadata.documentFingerprint) {
-    uris = frame.metadata.link.map(function (link) {
+    uris = frame.metadata.link.map(link => {
       return link.href;
     });
   }
 
   if (frame.metadata && frame.metadata.link) {
-    frame.metadata.link.forEach(function (link) {
+    frame.metadata.link.forEach(link => {
       if (link.href.startsWith('doi:')) {
         uris.push(link.href);
       }
@@ -155,12 +153,11 @@ const searchUris = createShallowEqualSelector(
   uris => uris
 );
 
-export default storeModule({
-  init: init,
+export default createStoreModule(initialState, {
   namespace: 'frames',
-  update: update,
+  reducers,
 
-  actions: {
+  actionCreators: {
     connectFrame,
     destroyFrame,
     updateFrameAnnotationFetchStatus,

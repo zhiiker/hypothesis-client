@@ -1,18 +1,19 @@
 /* global process */
 
-import createStore from '../create-store';
+import { createStore, createStoreModule } from '../create-store';
 
 const A = 0;
 
+function initialState(value = 0) {
+  return { count: value };
+}
+
 const modules = [
-  {
-    // namespaced module A
-    init(value = 0) {
-      return { count: value };
-    },
+  // namespaced module A
+  createStoreModule(initialState, {
     namespace: 'a',
 
-    update: {
+    reducers: {
       INCREMENT_COUNTER_A: (state, action) => {
         return { count: state.count + action.amount };
       },
@@ -21,7 +22,7 @@ const modules = [
       },
     },
 
-    actions: {
+    actionCreators: {
       incrementA(amount) {
         return { type: 'INCREMENT_COUNTER_A', amount };
       },
@@ -38,15 +39,13 @@ const modules = [
         return state.a.count;
       },
     },
-  },
-  {
-    // namespaced module B
-    init(value = 0) {
-      return { count: value };
-    },
+  }),
+
+  // namespaced module B
+  createStoreModule(initialState, {
     namespace: 'b',
 
-    update: {
+    reducers: {
       INCREMENT_COUNTER_B: (state, action) => {
         return { count: state.count + action.amount };
       },
@@ -55,7 +54,7 @@ const modules = [
       },
     },
 
-    actions: {
+    actionCreators: {
       incrementB(amount) {
         return { type: 'INCREMENT_COUNTER_B', amount };
       },
@@ -66,14 +65,14 @@ const modules = [
         return state.count;
       },
     },
-  },
+  }),
 ];
 
 function counterStore(initArgs = [], middleware = []) {
   return createStore(modules, initArgs, middleware);
 }
 
-describe('sidebar/store/create-store', () => {
+describe('createStore', () => {
   it('returns a working Redux store', () => {
     const store = counterStore();
     assert.equal(store.getState().a.count, 0);
@@ -95,7 +94,7 @@ describe('sidebar/store/create-store', () => {
     assert.calledWith(subscriber);
   });
 
-  it('passes initial state args to `init` function', () => {
+  it('passes initial state args to `initialState` function', () => {
     const store = counterStore([21]);
     assert.equal(store.getState().a.count, 21);
   });
@@ -108,20 +107,20 @@ describe('sidebar/store/create-store', () => {
 
   it('adds selectors as methods to the store', () => {
     const store = counterStore();
-    store.dispatch(modules[A].actions.incrementA(5));
+    store.dispatch(modules[A].actionCreators.incrementA(5));
     assert.equal(store.getCountA(), 5);
   });
 
   it('adds root selectors as methods to the store', () => {
     const store = counterStore();
-    store.dispatch(modules[A].actions.incrementA(5));
+    store.dispatch(modules[A].actionCreators.incrementA(5));
     assert.equal(store.getCountAFromRoot(), 5);
   });
 
   it('applies `thunk` middleware by default', () => {
     const store = counterStore();
     const doubleAction = (dispatch, getState) => {
-      dispatch(modules[A].actions.incrementA(getState().a.count));
+      dispatch(modules[A].actionCreators.incrementA(getState().a.count));
     };
 
     store.incrementA(5);
@@ -172,6 +171,18 @@ describe('sidebar/store/create-store', () => {
     });
     assert.equal(store.getState().a.count, 0);
     assert.equal(store.getState().b.count, 0);
+  });
+
+  it('supports modules with static initial state', () => {
+    const initialState = { value: 42 };
+    const module = createStoreModule(initialState, {
+      namespace: 'test',
+      actionCreators: {},
+      reducers: {},
+      selectors: {},
+    });
+    const store = createStore([module]);
+    assert.equal(store.getState().test.value, 42);
   });
 
   if (process.env.NODE_ENV !== 'production') {

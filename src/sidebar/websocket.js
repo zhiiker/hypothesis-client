@@ -1,6 +1,14 @@
 import retry from 'retry';
 import { TinyEmitter } from 'tiny-emitter';
 
+/**
+ * Operation created by `retry.operation`. See "retry" docs.
+ *
+ * @typedef RetryOperation
+ * @prop {(callback: () => void) => void} attempt
+ * @prop {(e: Error) => boolean} retry
+ */
+
 // Status codes indicating the reason why a WebSocket connection closed.
 // See https://developer.mozilla.org/en-US/docs/Web/API/CloseEvent and
 // https://tools.ietf.org/html/rfc6455#section-7.4.
@@ -16,7 +24,7 @@ export const CLOSE_ABNORMAL = 1006;
 // considered abnormal closures.
 
 // Minimum delay, in ms, before reconnecting after an abnormal connection close.
-const RECONNECT_MIN_DELAY = 1000;
+export const RECONNECT_MIN_DELAY = 1000;
 
 /**
  * Socket is a minimal wrapper around WebSocket which provides:
@@ -27,84 +35,58 @@ const RECONNECT_MIN_DELAY = 1000;
  * - Uses the standard EventEmitter API for reporting open, close, error
  *   and message events.
  */
-export default class Socket extends TinyEmitter {
+export class Socket extends TinyEmitter {
+  /**
+   * Connect to the WebSocket endpoint at `url`.
+   *
+   * @param {string} url
+   */
   constructor(url) {
     super();
 
-    const self = this;
-
-    // queue of JSON objects which have not yet been submitted
+    /**
+     * Queue of JSON objects which have not yet been submitted
+     *
+     * @type {object[]}
+     */
     const messageQueue = [];
 
-    // the current WebSocket instance
+    /**
+     * The active `WebSocket` instance
+     *
+     * @type {WebSocket}
+     */
     let socket;
 
-    // a pending operation to connect a WebSocket
-    let operation;
+    /**
+     * Pending connection or re-connection operation.
+     *
+     * @type {RetryOperation|null}
+     */
+    let operation = null;
 
-    function sendMessages() {
+    const sendMessages = () => {
       while (messageQueue.length > 0) {
         const messageString = JSON.stringify(messageQueue.shift());
         socket.send(messageString);
       }
-    }
+    };
 
-    // Connect the websocket immediately. If a connection attempt is already in
-    // progress, do nothing.
-    function connect() {
-      if (operation) {
-        return;
-      }
-
-      operation = retry.operation({
-        minTimeout: RECONNECT_MIN_DELAY * 2,
-        // Don't retry forever -- fail permanently after 10 retries
-        retries: 10,
-        // Randomize retry times to minimize the thundering herd effect
-        randomize: true,
-      });
-
-      operation.attempt(function () {
-        socket = new WebSocket(url);
-        socket.onopen = function (event) {
-          onOpen();
-          self.emit('open', event);
-        };
-        socket.onclose = function (event) {
-          if (event.code === CLOSE_NORMAL || event.code === CLOSE_GOING_AWAY) {
-            self.emit('close', event);
-            return;
-          }
-          const err = new Error(
-            `WebSocket closed abnormally, code: ${event.code}`
-          );
-          console.warn(err);
-          onAbnormalClose(err);
-        };
-        socket.onerror = function (event) {
-          self.emit('error', event);
-        };
-        socket.onmessage = function (event) {
-          self.emit('message', event);
-        };
-      });
-    }
-
-    // onOpen is called when a websocket connection is successfully established.
-    function onOpen() {
-      operation = null;
-      sendMessages();
-    }
-
-    // onAbnormalClose is called when a websocket connection closes abnormally.
-    // This may be the result of a failure to connect, or an abnormal close after
-    // a previous successful connection.
-    function onAbnormalClose(error) {
+    /**
+     * Handler for when the WebSocket disconnects "abnormally".
+     *
+     * This may be the result of a failure to connect, or an abnormal close after
+     * a previous successful connection.
+     *
+     * @param {Error} error
+     * @param {() => void} reconnect
+     */
+    const onAbnormalClose = (error, reconnect) => {
       // If we're already in a reconnection loop, trigger a retry...
       if (operation) {
         if (!operation.retry(error)) {
           console.error(
-            'reached max retries attempting to reconnect websocket'
+            'Reached max retries attempting to reconnect WebSocket'
           );
         }
         return;
@@ -112,14 +94,52 @@ export default class Socket extends TinyEmitter {
       // ...otherwise reconnect the websocket after a short delay.
       let delay = RECONNECT_MIN_DELAY;
       delay += Math.floor(Math.random() * delay);
-      operation = setTimeout(function () {
-        operation = null;
-        connect();
-      }, delay);
-    }
+      setTimeout(reconnect, delay);
+    };
+
+    /**
+     * Connect the WebSocket.
+     */
+    const connect = () => {
+      operation = /** @type {RetryOperation} */ (
+        retry.operation({
+          minTimeout: RECONNECT_MIN_DELAY * 2,
+          // Don't retry forever -- fail permanently after 10 retries
+          retries: 10,
+          // Randomize retry times to minimize the thundering herd effect
+          randomize: true,
+        })
+      );
+
+      operation.attempt(() => {
+        socket = new WebSocket(url);
+        socket.onopen = event => {
+          operation = null;
+          sendMessages();
+          this.emit('open', event);
+        };
+        socket.onclose = event => {
+          if (event.code === CLOSE_NORMAL || event.code === CLOSE_GOING_AWAY) {
+            this.emit('close', event);
+            return;
+          }
+          const err = new Error(
+            `WebSocket closed abnormally, code: ${event.code}`
+          );
+          console.warn(err);
+          onAbnormalClose(err, connect);
+        };
+        socket.onerror = event => {
+          this.emit('error', event);
+        };
+        socket.onmessage = event => {
+          this.emit('message', event);
+        };
+      });
+    };
 
     /** Close the underlying WebSocket connection */
-    this.close = function () {
+    this.close = () => {
       // nb. Always sent a status code in the `close()` call to work around
       // a problem in the backend's ws4py library.
       //
@@ -139,8 +159,10 @@ export default class Socket extends TinyEmitter {
     /**
      * Send a JSON object via the WebSocket connection, or queue it
      * for later delivery if not currently connected.
+     *
+     * @param {object} message
      */
-    this.send = function (message) {
+    this.send = message => {
       messageQueue.push(message);
       if (this.isConnected()) {
         sendMessages();
@@ -148,7 +170,7 @@ export default class Socket extends TinyEmitter {
     };
 
     /** Returns true if the WebSocket is currently connected. */
-    this.isConnected = function () {
+    this.isConnected = () => {
       return socket.readyState === WebSocket.OPEN;
     };
 

@@ -85,7 +85,6 @@ function AnnotationPublishControl({
           style={buttonStyle}
           onClick={onSave}
           disabled={isDisabled}
-          title={`Publish this annotation to ${publishDestination}`}
           size="large"
           variant="primary"
         >
@@ -130,6 +129,4 @@ function AnnotationPublishControl({
   );
 }
 
-AnnotationPublishControl.injectedProps = ['settings'];
-
-export default withServices(AnnotationPublishControl);
+export default withServices(AnnotationPublishControl, ['settings']);

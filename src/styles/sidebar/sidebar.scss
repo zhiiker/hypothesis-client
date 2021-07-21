@@ -11,10 +11,6 @@
 // -----------------
 @use '@hypothesis/frontend-shared/styles';
 
-// Temporary shared styles
-// FIXME: Currently needed for Dialog styling
-@use '../shared';
-
 // Custom button styling for the application
 @use './buttons';
 
@@ -40,7 +36,6 @@
 @use './components/HypothesisApp';
 @use './components/LaunchErrorPanel';
 @use './components/LoggedOutMessage';
-@use './components/LoginPromptPanel';
 @use './components/MarkdownEditor';
 @use './components/MarkdownView';
 @use './components/Menu';
@@ -50,7 +45,6 @@
 @use './components/NotebookView';
 @use './components/NotebookResultCount';
 @use './components/PaginationNavigation';
-@use './components/Panel';
 @use './components/SelectionTabs';
 @use './components/ShareAnnotationsPanel';
 @use './components/SearchInput';

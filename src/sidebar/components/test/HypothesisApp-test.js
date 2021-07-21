@@ -80,7 +80,7 @@ describe('HypothesisApp', () => {
 
     $imports.$mock(mockImportedComponents());
     $imports.$mock({
-      '../config/service-config': fakeServiceConfig,
+      '../config/service-config': { serviceConfig: fakeServiceConfig },
       '../store/use-store': { useStoreProxy: () => fakeStore },
       '../helpers/session': {
         shouldAutoDisplayTutorial: fakeShouldAutoDisplayTutorial,
@@ -182,7 +182,6 @@ describe('HypothesisApp', () => {
         status: 'logged-in',
         userid: 'acct:jim@hypothes.is',
         username: 'jim',
-        provider: 'hypothes.is',
         displayName: 'Jim Smith',
       },
     },
@@ -198,7 +197,6 @@ describe('HypothesisApp', () => {
         status: 'logged-in',
         userid: 'acct:jim@hypothes.is',
         username: 'jim',
-        provider: 'hypothes.is',
         displayName: 'jim',
       },
     },

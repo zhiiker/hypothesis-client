@@ -1,22 +1,22 @@
 import * as util from '../util';
 
-import { storeModule } from '../create-store';
+import { createStoreModule } from '../create-store';
 
 /**
  * This module defines actions and state related to the display mode of the
  * sidebar.
  */
 
-function init() {
-  return {
-    // Has the sidebar ever been opened? NB: This is not necessarily the
-    // current state of the sidebar, but tracks whether it has ever been open
-    sidebarHasOpened: false,
-    visibleHighlights: false,
-  };
-}
+const initialState = {
+  /**
+   * Has the sidebar ever been opened? NB: This is not necessarily the
+   * current state of the sidebar, but tracks whether it has ever been open
+   */
+  sidebarHasOpened: false,
+  visibleHighlights: false,
+};
 
-const update = {
+const reducers = {
   SET_HIGHLIGHTS_VISIBLE: function (state, action) {
     return { visibleHighlights: action.visible };
   },
@@ -30,7 +30,7 @@ const update = {
   },
 };
 
-const actions = util.actionTypes(update);
+const actions = util.actionTypes(reducers);
 
 // Action creators
 
@@ -55,11 +55,10 @@ function hasSidebarOpened(state) {
   return state.sidebarHasOpened;
 }
 
-export default storeModule({
-  init: init,
+export default createStoreModule(initialState, {
   namespace: 'viewer',
-  update: update,
-  actions: {
+  reducers,
+  actionCreators: {
     setShowHighlights,
     setSidebarOpened,
   },

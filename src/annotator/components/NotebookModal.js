@@ -1,4 +1,4 @@
-import { LabeledButton } from '@hypothesis/frontend-shared';
+import { IconButton } from '@hypothesis/frontend-shared';
 import { useEffect, useRef, useState } from 'preact/hooks';
 import classnames from 'classnames';
 
@@ -25,7 +25,7 @@ function NotebookIframe({ config, groupId }) {
   return (
     <iframe
       title={'Hypothesis annotation notebook'}
-      className="Notebook__iframe"
+      className="NotebookIframe"
       // Enable media in annotations to be shown fullscreen
       allowFullScreen
       src={notebookAppSrc}
@@ -79,13 +79,14 @@ export default function NotebookModal({ eventBus, config }) {
 
   useEffect(() => {
     emitter.current = eventBus.createEmitter();
-    emitter.current.subscribe('openNotebook', (
-      /** @type {string} */ groupId
-    ) => {
-      setIsHidden(false);
-      setIframeKey(iframeKey => iframeKey + 1);
-      setGroupId(groupId);
-    });
+    emitter.current.subscribe(
+      'openNotebook',
+      (/** @type {string} */ groupId) => {
+        setIsHidden(false);
+        setIframeKey(iframeKey => iframeKey + 1);
+        setGroupId(groupId);
+      }
+    );
 
     return () => {
       emitter.current.destroy();
@@ -97,22 +98,24 @@ export default function NotebookModal({ eventBus, config }) {
     emitter.current.publish('closeNotebook');
   };
 
+  if (groupId === null) {
+    return null;
+  }
+
   return (
-    <div className={classnames('Notebook__outer', { 'is-hidden': isHidden })}>
-      <div className="Notebook__inner">
-        <div className="Notebook__close-button-container">
-          <LabeledButton
+    <div
+      className={classnames('NotebookModal__outer', { 'is-hidden': isHidden })}
+    >
+      <div className="NotebookModal__inner">
+        <div className="NotebookModal__close-button-container">
+          <IconButton
             icon="cancel"
             title="Close the Notebook"
             onClick={onClose}
             variant="dark"
-          >
-            Close
-          </LabeledButton>
+          />
         </div>
-        {groupId !== null && (
-          <NotebookIframe key={iframeKey} config={config} groupId={groupId} />
-        )}
+        <NotebookIframe key={iframeKey} config={config} groupId={groupId} />
       </div>
     </div>
   );

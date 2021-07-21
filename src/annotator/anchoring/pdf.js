@@ -1,5 +1,6 @@
 /* global PDFViewerApplication */
 
+import { createPlaceholder } from './placeholder';
 import { TextPosition, TextRange } from './text-range';
 import { TextQuoteAnchor } from './types';
 
@@ -309,13 +310,7 @@ async function anchorByPosition(pageIndex, start, end) {
 
   // The page has not been rendered yet. Create a placeholder element and
   // anchor to that instead.
-  let placeholder = page.div.querySelector('.annotator-placeholder');
-  if (!placeholder) {
-    placeholder = document.createElement('span');
-    placeholder.classList.add('annotator-placeholder');
-    placeholder.textContent = 'Loading annotations…';
-    page.div.appendChild(placeholder);
-  }
+  const placeholder = createPlaceholder(page.div);
   const range = document.createRange();
   range.setStartBefore(placeholder);
   range.setEndAfter(placeholder);
@@ -431,12 +426,12 @@ function prioritizePages(position) {
  * @return {Promise<Range>}
  */
 export function anchor(root, selectors) {
-  const position = /** @type {TextPositionSelector|undefined} */ (selectors.find(
-    s => s.type === 'TextPositionSelector'
-  ));
-  const quote = /** @type {TextQuoteSelector|undefined} */ (selectors.find(
-    s => s.type === 'TextQuoteSelector'
-  ));
+  const position = /** @type {TextPositionSelector|undefined} */ (
+    selectors.find(s => s.type === 'TextPositionSelector')
+  );
+  const quote = /** @type {TextQuoteSelector|undefined} */ (
+    selectors.find(s => s.type === 'TextQuoteSelector')
+  );
 
   /** @type {Promise<Range>} */
   let result = Promise.reject('unable to anchor');
@@ -469,9 +464,8 @@ export function anchor(root, selectors) {
         quotePositionCache[quote.exact] &&
         quotePositionCache[quote.exact][position.start]
       ) {
-        const { pageIndex, anchor } = quotePositionCache[quote.exact][
-          position.start
-        ];
+        const { pageIndex, anchor } =
+          quotePositionCache[quote.exact][position.start];
         return anchorByPosition(pageIndex, anchor.start, anchor.end);
       }
 

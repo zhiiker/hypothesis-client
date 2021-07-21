@@ -2,7 +2,7 @@ import { createSelector } from 'reselect';
 
 import * as metadata from '../../helpers/annotation-metadata';
 import * as util from '../util';
-import { storeModule } from '../create-store';
+import { createStoreModule } from '../create-store';
 
 /** @typedef {import('../../../types/api').Annotation} Annotation */
 
@@ -11,9 +11,8 @@ import { storeModule } from '../create-store';
  * existing annotations.
  */
 
-function init() {
-  return [];
-}
+/** @type {Draft[]} */
+const initialState = [];
 
 /**
  * Helper class to encapsulate the draft properties and a few simple methods.
@@ -57,7 +56,7 @@ export class Draft {
 
 /* Reducer */
 
-const update = {
+const reducers = {
   DISCARD_ALL_DRAFTS: function () {
     return [];
   },
@@ -77,7 +76,7 @@ const update = {
   },
 };
 
-const actions = util.actionTypes(update);
+const actions = util.actionTypes(reducers);
 
 /* Actions */
 
@@ -187,11 +186,10 @@ const unsavedAnnotations = createSelector(
   drafts => drafts.filter(d => !d.annotation.id).map(d => d.annotation)
 );
 
-export default storeModule({
-  init,
+export default createStoreModule(initialState, {
   namespace: 'drafts',
-  update,
-  actions: {
+  reducers,
+  actionCreators: {
     createDraft,
     deleteNewAndEmptyDrafts,
     discardAllDrafts,

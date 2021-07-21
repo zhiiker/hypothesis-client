@@ -1,12 +1,10 @@
 import { actionTypes } from '../util';
 import { replaceURLParams } from '../../util/url';
-import { storeModule } from '../create-store';
+import { createStoreModule } from '../create-store';
 
-function init() {
-  return null;
-}
+const initialState = /** @type {Record<string, string>|null} */ (null);
 
-const update = {
+const reducers = {
   UPDATE_LINKS(state, action) {
     return {
       ...action.links,
@@ -14,7 +12,7 @@ const update = {
   },
 };
 
-const actions = actionTypes(update);
+const actions = actionTypes(reducers);
 
 /**
  * Update the link map
@@ -53,11 +51,10 @@ function getLink(state, linkName, params = {}) {
   return url;
 }
 
-export default storeModule({
-  init,
+export default createStoreModule(initialState, {
   namespace: 'links',
-  update,
-  actions: {
+  reducers,
+  actionCreators: {
     updateLinks,
   },
   selectors: {

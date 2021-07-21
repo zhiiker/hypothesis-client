@@ -1,6 +1,9 @@
-/* eslint-disable */
+import { ListenerCollection } from '../annotator/util/listener-collection';
 
-/** This software is released under the MIT license:
+/*
+  This module was adapted from `index.js` in https://github.com/substack/frame-rpc.
+
+  This software is released under the MIT license:
 
   Permission is hereby granted, free of charge, to any person obtaining a copy
   of this software and associated documentation files (the "Software"), to deal
@@ -21,106 +24,239 @@
   SOFTWARE.
  */
 
-/**
- * This is a modified copy of index.js from
- * https://github.com/substack/frame-rpc (see git log for the modifications),
- * upstream license above.
- */
-
 const VERSION = '1.0.0';
+const PROTOCOL = 'frame-rpc';
 
 /**
- *  @constructor
- *  @param {Window} src
- *  @param {Window} dst
- *  @param {string} origin
- *  @param {(Object<string, ((any) => any)>) | ((any) => any)} methods
+ * Format of messages sent between frames.
+ *
+ * See https://github.com/substack/frame-rpc#protocol
+ *
+ * @typedef RequestMessage
+ * @prop {any[]} arguments
+ * @prop {string} method
+ * @prop {PROTOCOL} protocol
+ * @prop {number} sequence
+ * @prop {VERSION} version
+ *
+ * @typedef ResponseMessage
+ * @prop {any[]} arguments
+ * @prop {PROTOCOL} protocol
+ * @prop {number} response
+ * @prop {VERSION} version
+ *
+ * @typedef {RequestMessage|ResponseMessage} Message
+ *
+ * @typedef {import('../types/annotator').Destroyable} Destroyable
  */
-export default function RPC(src, dst, origin, methods) {
-  const self = this;
-  this.src = src;
-  this.dst = dst;
-
-  if (origin === '*') {
-    this.origin = '*';
-  } else {
-    const uorigin = new URL(origin);
-    this.origin = uorigin.protocol + '//' + uorigin.host;
-  }
-
-  this._sequence = 0;
-  this._callbacks = {};
-
-  this._onmessage = function (ev) {
-    if (self._destroyed) return;
-    if (self.dst !== ev.source) return;
-    if (self.origin !== '*' && ev.origin !== self.origin) return;
-    if (!ev.data || typeof ev.data !== 'object') return;
-    if (ev.data.protocol !== 'frame-rpc') return;
-    if (!Array.isArray(ev.data.arguments)) return;
-    self._handle(ev.data);
-  };
-  this.src.addEventListener('message', this._onmessage);
-  this._methods =
-    (typeof methods === 'function' ? methods(this) : methods) || {};
-}
-
-RPC.prototype.destroy = function () {
-  this._destroyed = true;
-  this.src.removeEventListener('message', this._onmessage);
-};
 
 /**
- * @param {string} method
+ * Class for making RPC requests between two frames.
+ *
+ * Code adapted from https://github.com/substack/frame-rpc.
+ *
+ * @implements Destroyable
  */
-RPC.prototype.call = function (method) {
-  const args = [].slice.call(arguments, 1);
-  return this.apply(method, args);
-};
+export class RPC {
+  /**
+   * Create an RPC client for sending RPC requests from `sourceFrame` to
+   * `destFrame`, and receiving RPC responses from `destFrame` to `sourceFrame`.
+   *
+   * This class has been adapted to work with `MessageChannel`. Because messages
+   * sent through `MessageChannel` are only transmitted to and from `port1` and
+   * `port2`, there is no need for `sourceFrame` and `origin` properties.
+   *
+   * TODO: July 2021, currently this class is a bit of a _frankenstein_ because
+   * we support both `Window.postMessage` and `MessagePort.postMessage`.
+   * Once we move all the inter-frame communication to `MessageChannel` we will
+   * be able to cleanup this class. We have added `deprecated` comments in
+   * the pieces of code that need to be removed.
+   *
+   * @param {Window} sourceFrame -- deprecated - Remove after MessagePort conversion
+   * @param {Window|MessagePort} destFrameOrPort
+   * @param {string} origin - Origin of destination frame (deprecated - Remove after MessagePort conversion)
+   * @param {Record<string, (...args: any[]) => void>} methods - Map of method
+   *   name to method handler
+   */
+  constructor(sourceFrame, destFrameOrPort, origin, methods) {
+    this.sourceFrame = sourceFrame; // sourceFrame is ignored if using MessagePort
 
-/**
- * @param {string} method
- * @param {any[]} args
- */
-RPC.prototype.apply = function (method, args) {
-  if (this._destroyed) return;
-  const seq = this._sequence++;
-  if (typeof args[args.length - 1] === 'function') {
-    this._callbacks[seq] = args[args.length - 1];
-    args = args.slice(0, -1);
-  }
-  this.dst.postMessage(
-    {
-      protocol: 'frame-rpc',
-      version: VERSION,
-      sequence: seq,
-      method: method,
-      arguments: args,
-    },
-    this.origin
-  );
-};
+    if (destFrameOrPort instanceof MessagePort) {
+      this._port = destFrameOrPort;
+    } else {
+      /** @deprecated */
+      this.destFrame = destFrameOrPort;
+    }
 
-RPC.prototype._handle = function (msg) {
-  const self = this;
-  if (self._destroyed) return;
-  if (msg.hasOwnProperty('method')) {
-    if (!this._methods.hasOwnProperty(msg.method)) return;
-    const args = msg.arguments.concat(function () {
-      self.dst.postMessage(
-        {
-          protocol: 'frame-rpc',
-          version: VERSION,
-          response: msg.sequence,
-          arguments: [].slice.call(arguments),
-        },
-        self.origin
+    // Deprecated - Remove after MessagePort conversion
+    if (origin === '*') {
+      this.origin = '*';
+    } else {
+      this.origin = new URL(origin).origin;
+    }
+
+    this._methods = methods;
+
+    this._sequence = 0;
+    this._callbacks = {};
+    this._destroyed = false;
+
+    this._listeners = new ListenerCollection();
+
+    if (this._port) {
+      this._listeners.add(this._port, 'message', event =>
+        this._handle(/** @type {MessageEvent} */ (event))
       );
-    });
-    this._methods[msg.method].apply(this._methods, args);
-  } else if (msg.hasOwnProperty('response')) {
-    const cb = this._callbacks[msg.response];
-    delete this._callbacks[msg.response];
-    if (cb) cb.apply(null, msg.arguments);
+      this._port.start();
+    } else {
+      // Deprecated - Remove after MessagePort conversion
+      /**
+       * @param {MessageEvent} event
+       * @deprecated
+       */
+      const onmessage = event => {
+        if (!this._isValidSender(event)) {
+          return;
+        }
+        this._handle(event);
+      };
+      this._listeners.add(this.sourceFrame, 'message', event =>
+        onmessage(/** @type {MessageEvent} */ (event))
+      );
+    }
   }
-};
+
+  /**
+   * Disconnect the RPC channel. After this is invoked no further method calls
+   * will be received.
+   */
+  destroy() {
+    this._destroyed = true;
+    this._listeners.removeAll();
+    this._port?.close();
+  }
+
+  /**
+   * Send an RPC request to the destination frame.
+   *
+   * If the final argument in `args` is a function, it is treated as a callback
+   * which is invoked with the response.
+   *
+   * @param {string} method
+   * @param {any[]} args
+   */
+  call(method, ...args) {
+    if (this._destroyed) {
+      return;
+    }
+
+    const seq = this._sequence++;
+    const finalArg = args[args.length - 1];
+    if (typeof finalArg === 'function') {
+      this._callbacks[seq] = finalArg;
+      args = args.slice(0, -1);
+    }
+
+    /** @type {RequestMessage} */
+    const message = {
+      arguments: args,
+      method,
+      protocol: PROTOCOL,
+      sequence: seq,
+      version: VERSION,
+    };
+
+    if (this._port) {
+      this._port.postMessage(message);
+    }
+
+    // Deprecated - Remove after MessagePort conversion
+    if (this.destFrame) {
+      this.destFrame.postMessage(message, this.origin);
+    }
+  }
+
+  /**
+   * Validate sender
+   *
+   * @param {MessageEvent} event
+   * @deprecated
+   */
+  _isValidSender(event) {
+    if (event.source !== this.destFrame) {
+      return false;
+    }
+    if (this.origin !== '*' && event.origin !== this.origin) {
+      return false;
+    }
+
+    return true;
+  }
+
+  /**
+   * Validate message
+   *
+   * @param {MessageEvent} event
+   * @return {null|Message}
+   */
+  _parseMessage({ data }) {
+    if (!data || typeof data !== 'object') {
+      return null;
+    }
+    if (data.protocol !== PROTOCOL) {
+      return null;
+    }
+    if (data.version !== VERSION) {
+      return null;
+    }
+    if (!Array.isArray(data.arguments)) {
+      return null;
+    }
+
+    return data;
+  }
+
+  /**
+   * @param {MessageEvent} event
+   */
+  _handle(event) {
+    const msg = this._parseMessage(event);
+
+    if (msg === null) {
+      return;
+    }
+
+    if ('method' in msg) {
+      if (!this._methods.hasOwnProperty(msg.method)) {
+        return;
+      }
+
+      /** @param {any[]} args */
+      const callback = (...args) => {
+        /** @type {ResponseMessage} */
+        const message = {
+          arguments: args,
+          protocol: PROTOCOL,
+          response: msg.sequence,
+          version: VERSION,
+        };
+
+        if (this._port) {
+          this._port.postMessage(message);
+        }
+
+        // Deprecated - Remove after MessagePort conversion
+        if (this.destFrame) {
+          this.destFrame.postMessage(message, this.origin);
+        }
+      };
+      this._methods[msg.method].call(this._methods, ...msg.arguments, callback);
+    } else if ('response' in msg) {
+      const cb = this._callbacks[msg.response];
+      delete this._callbacks[msg.response];
+      if (cb) {
+        cb.apply(null, msg.arguments);
+      }
+    }
+  }
+}

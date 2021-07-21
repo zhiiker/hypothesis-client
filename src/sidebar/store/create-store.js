@@ -23,28 +23,34 @@ import { createReducer, bindSelectors } from './util';
  */
 
 /**
- * Map of action name to reducer function.
+ * Map of action type to reducer function.
  *
  * @template State
- * @typedef {{ [action: string]: (s: State, action: any) => Partial<State> }} Reducers
+ * @typedef {{ [action: string]: (s: State, action: any) => Partial<State> }} ReducerMap
  */
 
 /**
- * Configuration for a store module.
+ * Map of selector name to selector function.
+ *
+ * @template State
+ * @typedef {{ [name: string]: (s: State, ...args: any[]) => any }} SelectorMap
+ */
+
+/**
+ * Type of a store module returned by `createStoreModule`.
  *
  * @template State
  * @template {object} Actions
  * @template {object} Selectors
  * @template {object} RootSelectors
  * @typedef Module
- * @prop {(...args: any[]) => State} init -
- *   Function that returns the initial state for the module
  * @prop {string} namespace -
  *   The key under which this module's state will live in the store's root state
- * @prop {Reducers<State>} update -
+ * @prop {(...args: any[]) => State} initialState
+ * @prop {ReducerMap<State>} reducers -
  *   Map of action types to "reducer" functions that process an action and return
  *   the changes to the state
- * @prop {Actions} actions
+ * @prop {Actions} actionCreators
  *   Object containing action creator functions
  * @prop {Selectors} selectors
  *   Object containing selector functions
@@ -75,7 +81,8 @@ import { createReducer, bindSelectors } from './util';
  */
 
 /**
- * Redux store augmented with methods to dispatch actions and select state.
+ * Redux store augmented with selector methods to query specific state and
+ * action methods that dispatch specific actions.
  *
  * @template {object} Actions
  * @template {object} Selectors
@@ -97,16 +104,25 @@ import { createReducer, bindSelectors } from './util';
  *  - The _selectors_ for reading that state or computing things
  *    from that state.
  *
- * On top of the standard Redux store methods, the returned store also exposes
- * each action and selector from the input modules as a method which operates on
- * the store.
+ * In addition to the standard Redux store interface, the returned store also exposes
+ * each action creator and selector from the input modules as a method. For example, if
+ * a store is created from a module that has a `getWidget(<id>)` selector and
+ * an `addWidget(<object>)` action, a consumer would use `store.getWidget(<id>)`
+ * to fetch an item and `store.addWidget(<object>)` to dispatch an action that
+ * adds an item. External consumers of the store should in most cases use these
+ * selector and action methods rather than `getState` or `dispatch`. This
+ * makes it easier to refactor the internal state structure.
+ *
+ * Preact UI components access stores via the `useStoreProxy` hook defined in
+ * `use-store.js`. This returns a proxy which enables UI components to observe
+ * what store state a component depends upon and re-render when it changes.
  *
  * @param {Module<any,any,any,any>[]} modules
- * @param {any[]} [initArgs] - Arguments to pass to each state module's `init` function
+ * @param {any[]} [initArgs] - Arguments to pass to each state module's `initialState` function
  * @param {any[]} [middleware] - List of additional Redux middlewares to use
  * @return Store<any,any,any>
  */
-export default function createStore(modules, initArgs = [], middleware = []) {
+export function createStore(modules, initArgs = [], middleware = []) {
   // Create the initial state and state update function.
 
   // Namespaced objects for initial states.
@@ -127,9 +143,9 @@ export default function createStore(modules, initArgs = [], middleware = []) {
   //
   modules.forEach(module => {
     if (module.namespace) {
-      initialState[module.namespace] = module.init(...initArgs);
+      initialState[module.namespace] = module.initialState(...initArgs);
 
-      allReducers[module.namespace] = createReducer(module.update);
+      allReducers[module.namespace] = createReducer(module.reducers);
       allSelectors[module.namespace] = {
         selectors: module.selectors,
         rootSelectors: module.rootSelectors || {},
@@ -162,7 +178,7 @@ export default function createStore(modules, initArgs = [], middleware = []) {
   const store = redux.createStore(reducer, initialState, enhancer);
 
   // Add actions and selectors as methods to the store.
-  const actions = Object.assign({}, ...modules.map(m => m.actions));
+  const actions = Object.assign({}, ...modules.map(m => m.actionCreators));
   const boundActions = redux.bindActionCreators(actions, store.dispatch);
   const boundSelectors = bindSelectors(allSelectors, store.getState);
 
@@ -171,20 +187,38 @@ export default function createStore(modules, initArgs = [], middleware = []) {
   return store;
 }
 
+// The properties of the `config` argument to `createStoreModule` below are
+// declared inline due to https://github.com/microsoft/TypeScript/issues/43403.
+
 /**
- * Helper to validate a store module configuration before it is passed to
- * `createStore`.
+ * Create a store module that can be passed to `createStore`.
  *
  * @template State
  * @template Actions
- * @template Selectors
+ * @template {SelectorMap<State>} Selectors
  * @template RootSelectors
- * @param {Module<State,Actions,Selectors,RootSelectors>} config
+ * @param {State | ((...args: any[]) => State)} initialState
+ * @param {object} config
+ *   @param {string} config.namespace -
+ *     The key under which this module's state will live in the store's root state
+ *   @param {ReducerMap<State>} config.reducers -
+ *   @param {Actions} config.actionCreators
+ *   @param {Selectors} config.selectors
+ *   @param {RootSelectors} [config.rootSelectors]
  * @return {Module<State,Actions,Selectors,RootSelectors>}
  */
-export function storeModule(config) {
-  // This helper doesn't currently do anything at runtime. It does ensure more
-  // helpful error messages when typechecking if there is something incorrect
-  // in the configuration.
-  return config;
+export function createStoreModule(initialState, config) {
+  // The `initialState` argument is separate to `config` as this allows
+  // TypeScript to infer the `State` type in the `config` argument at the
+  // `createStoreModule` call site.
+
+  if (!(initialState instanceof Function)) {
+    const state = initialState;
+    initialState = () => state;
+  }
+
+  return {
+    initialState,
+    ...config,
+  };
 }

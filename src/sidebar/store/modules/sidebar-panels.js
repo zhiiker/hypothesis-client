@@ -14,25 +14,24 @@
 
 import * as util from '../util';
 
-import { storeModule } from '../create-store';
+import { createStoreModule } from '../create-store';
 
-function init() {
-  return {
-    /*
-     * The `panelName` of the currently-active sidebar panel.
-     * Only one `panelName` may be active at a time, but it is valid (though not
-     * the standard use case) for multiple `SidebarPanel` components to share
-     * the same `panelName`—`panelName` is not intended as a unique ID/key.
-     *
-     * e.g. If `activePanelName` were `foobar`, all `SidebarPanel` components
-     * with `panelName` of `foobar` would be active, and thus visible.
-     *
-     */
-    activePanelName: null,
-  };
-}
+const initialState = {
+  /**
+   * The `panelName` of the currently-active sidebar panel.
+   * Only one `panelName` may be active at a time, but it is valid (though not
+   * the standard use case) for multiple `SidebarPanel` components to share
+   * the same `panelName`—`panelName` is not intended as a unique ID/key.
+   *
+   * e.g. If `activePanelName` were `foobar`, all `SidebarPanel` components
+   * with `panelName` of `foobar` would be active, and thus visible.
+   *
+   * @type {PanelName|null}
+   */
+  activePanelName: null,
+};
 
-const update = {
+const reducers = {
   OPEN_SIDEBAR_PANEL: function (state, action) {
     return { activePanelName: action.panelName };
   },
@@ -76,7 +75,7 @@ const update = {
   },
 };
 
-const actions = util.actionTypes(update);
+const actions = util.actionTypes(reducers);
 
 /**
  * Designate `panelName` as the currently-active panel name
@@ -84,7 +83,7 @@ const actions = util.actionTypes(update);
  * @param {PanelName} panelName
  */
 function openSidebarPanel(panelName) {
-  return { type: actions.OPEN_SIDEBAR_PANEL, panelName: panelName };
+  return { type: actions.OPEN_SIDEBAR_PANEL, panelName };
 }
 
 /**
@@ -93,7 +92,7 @@ function openSidebarPanel(panelName) {
  * @param {PanelName} panelName
  */
 function closeSidebarPanel(panelName) {
-  return { type: actions.CLOSE_SIDEBAR_PANEL, panelName: panelName };
+  return { type: actions.CLOSE_SIDEBAR_PANEL, panelName };
 }
 
 /**
@@ -107,8 +106,8 @@ function closeSidebarPanel(panelName) {
 function toggleSidebarPanel(panelName, panelState) {
   return {
     type: actions.TOGGLE_SIDEBAR_PANEL,
-    panelName: panelName,
-    panelState: panelState,
+    panelName,
+    panelState,
   };
 }
 
@@ -122,12 +121,11 @@ function isSidebarPanelOpen(state, panelName) {
   return state.activePanelName === panelName;
 }
 
-export default storeModule({
+export default createStoreModule(initialState, {
   namespace: 'sidebarPanels',
-  init: init,
-  update: update,
+  reducers,
 
-  actions: {
+  actionCreators: {
     openSidebarPanel,
     closeSidebarPanel,
     toggleSidebarPanel,

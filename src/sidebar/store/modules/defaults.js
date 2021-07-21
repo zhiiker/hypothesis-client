@@ -1,6 +1,6 @@
 import * as util from '../util';
 
-import { storeModule } from '../create-store';
+import { createStoreModule } from '../create-store';
 
 /**
  * A store module for managing client-side user-convenience defaults.
@@ -16,29 +16,21 @@ import { storeModule } from '../create-store';
  * `persistedDefaults` service.
  */
 
-function init() {
-  /**
-   * Note that the persisted presence of any of these defaults cannot be
-   * guaranteed, so consumers of said defaults should be prepared to handle
-   * missing (i.e. `null`) values. As `null` is a sentinal value indicating
-   * "not set/unavailable", a `null` value for a default is otherwise invalid.
-   */
-  return {
-    annotationPrivacy: null,
-    focusedGroup: null,
-  };
-}
+const initialState = {
+  annotationPrivacy: /** @type {'private'|'shared'|null} */ (null),
+  focusedGroup: /** @type {string|null} */ (null),
+};
 
-const update = {
+const reducers = {
   SET_DEFAULT: function (state, action) {
     return { [action.defaultKey]: action.value };
   },
 };
 
-const actions = util.actionTypes(update);
+const actions = util.actionTypes(reducers);
 
 function setDefault(defaultKey, value) {
-  return { type: actions.SET_DEFAULT, defaultKey: defaultKey, value: value };
+  return { type: actions.SET_DEFAULT, defaultKey, value };
 }
 
 /** Selectors */
@@ -57,11 +49,10 @@ function getDefaults(state) {
   return state;
 }
 
-export default storeModule({
-  init,
+export default createStoreModule(initialState, {
   namespace: 'defaults',
-  update,
-  actions: {
+  reducers,
+  actionCreators: {
     setDefault,
   },
   selectors: {

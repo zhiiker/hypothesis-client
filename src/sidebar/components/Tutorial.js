@@ -1,6 +1,6 @@
 import { SvgIcon } from '@hypothesis/frontend-shared';
 
-import isThirdPartyService from '../helpers/is-third-party-service';
+import { isThirdPartyService } from '../helpers/is-third-party-service';
 import { withServices } from '../service-context';
 
 /**
@@ -68,6 +68,4 @@ function Tutorial({ settings }) {
   );
 }
 
-Tutorial.injectedProps = ['settings'];
-
-export default withServices(Tutorial);
+export default withServices(Tutorial, ['settings']);

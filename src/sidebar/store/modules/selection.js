@@ -22,7 +22,7 @@ import { createSelector } from 'reselect';
 import * as metadata from '../../helpers/annotation-metadata';
 import { countIf, trueKeys, toTrueMap } from '../../util/collections';
 import * as util from '../util';
-import { storeModule } from '../create-store';
+import { createStoreModule } from '../create-store';
 
 /**
  * Default sort keys for each tab.
@@ -44,7 +44,7 @@ function initialSelection(settings) {
   return selection;
 }
 
-function init(settings) {
+function initialState(settings) {
   return {
     /**
      * The following objects map annotation identifiers to a boolean
@@ -100,7 +100,7 @@ const resetSelection = () => {
   };
 };
 
-const update = {
+const reducers = {
   CLEAR_SELECTION: function () {
     return resetSelection();
   },
@@ -204,7 +204,7 @@ const update = {
   },
 };
 
-const actions = util.actionTypes(update);
+const actions = util.actionTypes(reducers);
 
 /* Action Creators */
 
@@ -281,7 +281,7 @@ function setForcedVisible(id, visible) {
 function setSortKey(key) {
   return {
     type: actions.SET_SORT_KEY,
-    key: key,
+    key,
   };
 }
 
@@ -387,12 +387,11 @@ const sortKeys = createSelector(
   }
 );
 
-export default storeModule({
-  init: init,
+export default createStoreModule(initialState, {
   namespace: 'selection',
-  update: update,
+  reducers,
 
-  actions: {
+  actionCreators: {
     clearSelection,
     selectAnnotations,
     selectTab,

@@ -1,4 +1,4 @@
-import { storeModule } from '../create-store';
+import { createStoreModule } from '../create-store';
 
 import * as util from '../util';
 
@@ -16,13 +16,13 @@ import * as util from '../util';
  * maintains state only; it's up to other layers to handle the management
  * and interactions with these messages.
  */
-function init() {
-  return {
-    messages: [],
-  };
-}
 
-const update = {
+const initialState = {
+  /** @type {ToastMessage[]} */
+  messages: [],
+};
+
+const reducers = {
   ADD_MESSAGE: function (state, action) {
     return {
       messages: state.messages.concat({ ...action.message }),
@@ -47,7 +47,7 @@ const update = {
   },
 };
 
-const actions = util.actionTypes(update);
+const actions = util.actionTypes(reducers);
 
 /** Actions */
 
@@ -112,11 +112,10 @@ function hasMessage(state, type, text) {
   });
 }
 
-export default storeModule({
-  init,
+export default createStoreModule(initialState, {
   namespace: 'toastMessages',
-  update,
-  actions: {
+  reducers,
+  actionCreators: {
     addToastMessage: addMessage,
     removeToastMessage: removeMessage,
     updateToastMessage: updateMessage,

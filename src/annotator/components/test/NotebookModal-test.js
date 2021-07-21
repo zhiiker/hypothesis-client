@@ -32,23 +32,22 @@ describe('NotebookModal', () => {
 
   it('hides modal on first render', () => {
     const wrapper = createComponent();
-    const outer = wrapper.find('.Notebook__outer');
+    const outer = wrapper.find('.NotebookModal__outer');
 
-    assert.isTrue(outer.hasClass('is-hidden'));
-    assert.isFalse(wrapper.find('iframe').exists());
+    assert.isFalse(outer.exists());
   });
 
   it('shows modal on "openNotebook" event', () => {
     const wrapper = createComponent();
-    let outer = wrapper.find('.Notebook__outer');
+    let outer = wrapper.find('.NotebookModal__outer');
 
-    assert.isTrue(outer.hasClass('is-hidden'));
+    assert.isFalse(outer.exists());
     assert.isFalse(wrapper.find('iframe').exists());
 
     emitter.publish('openNotebook', 'myGroup');
     wrapper.update();
 
-    outer = wrapper.find('.Notebook__outer');
+    outer = wrapper.find('.NotebookModal__outer');
     assert.isFalse(outer.hasClass('is-hidden'));
 
     const iframe = wrapper.find('iframe');
@@ -105,15 +104,15 @@ describe('NotebookModal', () => {
     emitter.publish('openNotebook', 'myGroup');
     wrapper.update();
 
-    let outer = wrapper.find('.Notebook__outer');
+    let outer = wrapper.find('.NotebookModal__outer');
     assert.isFalse(outer.hasClass('is-hidden'));
 
     act(() => {
-      wrapper.find('LabeledButton').prop('onClick')();
+      wrapper.find('IconButton').prop('onClick')();
     });
     wrapper.update();
 
-    outer = wrapper.find('.Notebook__outer');
+    outer = wrapper.find('.NotebookModal__outer');
 
     assert.isTrue(outer.hasClass('is-hidden'));
   });
@@ -124,8 +123,9 @@ describe('NotebookModal', () => {
       emitter.publish('openNotebook', 'myGroup');
     });
     assert.equal(document.body.style.overflow, 'hidden');
+    wrapper.update();
     act(() => {
-      wrapper.find('LabeledButton').prop('onClick')();
+      wrapper.find('IconButton').prop('onClick')();
     });
     assert.notEqual(document.body.style.overflow, 'hidden');
   });

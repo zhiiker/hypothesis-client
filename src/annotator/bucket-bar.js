@@ -9,20 +9,29 @@ import { ListenerCollection } from './util/listener-collection';
  * @prop {Element} [contentContainer] - The scrollable container element for the
  *   document content. All of the highlights that the bucket bar's buckets point
  *   at should be contained within this element.
+ *
+ * @typedef {import('../types/annotator').Destroyable} Destroyable
  */
 
+/**
+ * Controller for the "bucket bar" shown alongside the sidebar indicating where
+ * annotations are in the document.
+ *
+ * @implements Destroyable
+ */
 export default class BucketBar {
   /**
    * @param {HTMLElement} container
-   * @param {Pick<import('./guest').default, 'anchors'|'selectAnnotations'>} guest
+   * @param {Pick<import('./guest').default, 'anchors'|'scrollToAnchor'|'selectAnnotations'>} guest
    * @param {BucketBarOptions} [options]
    */
   constructor(container, guest, { contentContainer = document.body } = {}) {
     this._contentContainer = contentContainer;
-    this.element = document.createElement('div');
 
-    this.guest = guest;
-    container.appendChild(this.element);
+    this._bucketsContainer = document.createElement('div');
+    container.appendChild(this._bucketsContainer);
+
+    this._guest = guest;
 
     this._listeners = new ListenerCollection();
 
@@ -36,7 +45,7 @@ export default class BucketBar {
 
   destroy() {
     this._listeners.removeAll();
-    this.element.remove();
+    this._bucketsContainer.remove();
   }
 
   update() {
@@ -51,17 +60,18 @@ export default class BucketBar {
   }
 
   _update() {
-    const buckets = anchorBuckets(this.guest.anchors);
+    const buckets = anchorBuckets(this._guest.anchors);
     render(
       <Buckets
         above={buckets.above}
         below={buckets.below}
         buckets={buckets.buckets}
         onSelectAnnotations={(annotations, toggle) =>
-          this.guest.selectAnnotations(annotations, toggle)
+          this._guest.selectAnnotations(annotations, toggle)
         }
+        scrollToAnchor={anchor => this._guest.scrollToAnchor(anchor)}
       />,
-      this.element
+      this._bucketsContainer
     );
   }
 }

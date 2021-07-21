@@ -1,3 +1,6 @@
+// @ts-expect-error - Ignore error about default-importing a CommonJS module.
+import escapeStringRegexp from 'escape-string-regexp';
+
 /**
  * @typedef Tag
  * @property {string} text - The label of the tag
@@ -35,21 +38,22 @@ export class TagsService {
   filter(query, limit = null) {
     const savedTags = this._storage.getObject(TAGS_LIST_KEY) || [];
     let resultCount = 0;
-    // query will match tag if:
-    // * tag starts with query (e.g. tag "banana" matches query "ban"), OR
-    // * any word in the tag starts with query
-    //   (e.g. tag "pink banana" matches query "ban"), OR
-    // * tag has substring query occurring after a non-word character
-    //   (e.g. tag "pink!banana" matches query "ban")
-    let regex = new RegExp('(\\W|\\b)' + query, 'i');
+    // Match any tag where the query is a prefix of the tag or a word within the tag.
     return savedTags.filter(tag => {
-      if (tag.match(regex)) {
-        if (limit === null || resultCount < limit) {
-          // limit allows a subset of the results
-          // See https://github.com/hypothesis/client/issues/1606
-          ++resultCount;
-          return true;
-        }
+      if (limit !== null && resultCount >= limit) {
+        // limit allows a subset of the results
+        // See https://github.com/hypothesis/client/issues/1606
+        return false;
+      }
+      // Split the string on words. An improvement would be to use a unicode word boundary
+      // algorithm implemented by the browser (when available).
+      // https://unicode.org/reports/tr29/#Word_Boundaries
+      const words = tag.split(/\W+/);
+      const regex = new RegExp(`^${escapeStringRegexp(query)}`, 'i'); // Only match the start of the string
+      const matches = words.some(word => word.match(regex)) || tag.match(regex);
+      if (matches) {
+        ++resultCount;
+        return true;
       }
       return false;
     });

@@ -1,3 +1,4 @@
+import { isInPlaceholder } from './anchoring/placeholder';
 import { isNodeInRange } from './range-util';
 
 const SVG_NAMESPACE = 'http://www.w3.org/2000/svg';
@@ -167,7 +168,9 @@ function wholeTextNodesInRange(range) {
   }
 
   const textNodes = [];
-  const nodeIter = /** @type {Document} */ (root.ownerDocument).createNodeIterator(
+  const nodeIter = /** @type {Document} */ (
+    root.ownerDocument
+  ).createNodeIterator(
     root,
     NodeFilter.SHOW_TEXT // Only return `Text` nodes.
   );
@@ -207,13 +210,9 @@ function wholeTextNodesInRange(range) {
 export function highlightRange(range, cssClass = 'hypothesis-highlight') {
   const textNodes = wholeTextNodesInRange(range);
 
-  // Check if this range refers to a placeholder for not-yet-rendered text in
+  // Check if this range refers to a placeholder for not-yet-rendered content in
   // a PDF. These highlights should be invisible.
-  const isPlaceholder =
-    textNodes.length > 0 &&
-    /** @type {Element} */ (textNodes[0].parentNode).closest(
-      '.annotator-placeholder'
-    ) !== null;
+  const inPlaceholder = textNodes.length > 0 && isInPlaceholder(textNodes[0]);
 
   // Group text nodes into spans of adjacent nodes. If a group of text nodes are
   // adjacent, we only need to create one highlight element for the group.
@@ -253,7 +252,7 @@ export function highlightRange(range, cssClass = 'hypothesis-highlight') {
     nodes[0].parentNode.replaceChild(highlightEl, nodes[0]);
     nodes.forEach(node => highlightEl.appendChild(node));
 
-    if (!isPlaceholder) {
+    if (!inPlaceholder) {
       // For PDF highlights, create the highlight effect by using an SVG placed
       // above the page's canvas rather than CSS `background-color` on the
       // highlight element. This enables more control over blending of the

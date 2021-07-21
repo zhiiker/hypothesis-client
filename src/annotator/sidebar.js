@@ -18,6 +18,8 @@ import { ListenerCollection } from './util/listener-collection';
  * @prop {boolean} expanded
  * @prop {number} width
  * @prop {number} height
+ *
+ * @typedef {import('../types/annotator').Destroyable} Destroyable
  */
 
 // Minimum width to which the iframeContainer can be resized.
@@ -49,6 +51,8 @@ function createSidebarIframe(config) {
 /**
  * The `Sidebar` class creates (1) the sidebar application iframe, (2) its container,
  * as well as (3) the adjacent controls.
+ *
+ * @implements Destroyable
  */
 export default class Sidebar {
   /**
@@ -208,14 +212,15 @@ export default class Sidebar {
     this.guest.crossframe.on('openSidebar', () => this.open());
     this.guest.crossframe.on('closeSidebar', () => this.close());
 
-    // Re-publish the crossframe event so that anything extending Delegator
-    // can subscribe to it (without need for crossframe)
-    this.guest.crossframe.on('openNotebook', (
-      /** @type {string} */ groupId
-    ) => {
-      this.hide();
-      this._emitter.publish('openNotebook', groupId);
-    });
+    // Sidebar listens to the `openNotebook` event coming from the sidebar's
+    // iframe and re-publishes it via the emitter to the Notebook
+    this.guest.crossframe.on(
+      'openNotebook',
+      (/** @type {string} */ groupId) => {
+        this.hide();
+        this._emitter.publish('openNotebook', groupId);
+      }
+    );
     this._emitter.subscribe('closeNotebook', () => {
       this.show();
     });
@@ -296,8 +301,9 @@ export default class Sidebar {
     // its container.
 
     const toolbarWidth = (this.iframeContainer && this.toolbar.getWidth()) || 0;
-    const frame = /** @type {HTMLElement} */ (this.iframeContainer ??
-      this.externalFrame);
+    const frame = /** @type {HTMLElement} */ (
+      this.iframeContainer ?? this.externalFrame
+    );
     const rect = frame.getBoundingClientRect();
     const computedStyle = window.getComputedStyle(frame);
     const width = parseInt(computedStyle.width);

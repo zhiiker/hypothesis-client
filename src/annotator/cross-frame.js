@@ -6,6 +6,7 @@ import FrameObserver from './frame-observer';
 
 /**
  * @typedef {import('../types/annotator').AnnotationData} AnnotationData
+ * @typedef {import('../types/annotator').Destroyable} Destroyable
  */
 
 /**
@@ -16,6 +17,8 @@ import FrameObserver from './frame-observer';
  * This class also has logic for injecting Hypothesis into iframes that
  * are added to the page if they have the `enable-annotation` attribute set
  * and are same-origin with the current document.
+ *
+ * @implements Destroyable
  */
 export class CrossFrame {
   /**
@@ -42,8 +45,6 @@ export class CrossFrame {
         return;
       }
 
-      const { clientUrl } = config;
-
       frameUtil.isLoaded(frame, () => {
         const subFrameIdentifier = discovery.generateToken();
         frameIdentifiers.set(frame, subFrameIdentifier);
@@ -52,6 +53,7 @@ export class CrossFrame {
           subFrameIdentifier,
         };
 
+        const { clientUrl } = config;
         frameUtil.injectHypothesis(frame, clientUrl, injectedConfig);
       });
     };
@@ -62,9 +64,9 @@ export class CrossFrame {
     };
 
     // Initiate connection to the sidebar.
-    const onDiscoveryCallback = (source, origin, token) =>
-      bridge.createChannel(source, origin, token);
-    discovery.startDiscovery(onDiscoveryCallback);
+    discovery.startDiscovery((source, origin, token) =>
+      bridge.createChannel({ source, origin, token })
+    );
     frameObserver.observe(injectIntoFrame, iframeUnloaded);
 
     /**
@@ -87,7 +89,7 @@ export class CrossFrame {
      * Subscribe to an event from the sidebar.
      *
      * @param {string} event
-     * @param {Function} callback
+     * @param {(...args: any[]) => void} callback
      */
     this.on = (event, callback) => bridge.on(event, callback);
 
@@ -103,7 +105,7 @@ export class CrossFrame {
      * Register a callback to be invoked once the connection to the sidebar
      * is set up.
      *
-     * @param {Function} callback
+     * @param {(...args: any[]) => void} callback
      */
     this.onConnect = callback => bridge.onConnect(callback);
   }
